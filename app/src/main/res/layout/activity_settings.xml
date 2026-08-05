@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <EditText
+        android:id="@+id/openai_key_input"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="OpenAI APIキー" />
+
+    <EditText
+        android:id="@+id/github_token_input"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="GitHub Personal Access Token" />
+
+    <EditText
+        android:id="@+id/github_repo_input"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="リポジトリ（例: user/call-recording-app）" />
+
+    <EditText
+        android:id="@+id/github_branch_input"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="ブランチ（既定: main）" />
+
+    <EditText
+        android:id="@+id/github_folder_input"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="保存フォルダ（既定: diary）" />
+
+    <Button
+        android:id="@+id/save_settings_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="保存" />
+</LinearLayout>
