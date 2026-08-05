@@ -21,15 +21,13 @@ object GitHubContentRequestBuilder {
     }
 
     private fun putBody(message: String, base64Content: String, branch: String, sha: String?): String {
-        val sb = StringBuilder()
-        sb.append("{")
-        sb.append("\"message\":\"").append(message).append("\",")
-        sb.append("\"content\":\"").append(base64Content).append("\",")
-        sb.append("\"branch\":\"").append(branch).append("\"")
+        val json = JSONObject()
+        json.put("message", message)
+        json.put("content", base64Content)
+        json.put("branch", branch)
         if (sha != null) {
-            sb.append(",\"sha\":\"").append(sha).append("\"")
+            json.put("sha", sha)
         }
-        sb.append("}")
-        return sb.toString()
+        return json.toString()
     }
 }
