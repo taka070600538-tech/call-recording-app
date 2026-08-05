@@ -6,9 +6,12 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.util.Base64
+import java.util.concurrent.TimeUnit
 
 class GitHubClient(
-    private val httpClient: OkHttpClient = OkHttpClient(),
+    // OkHttp's 10s default write timeout is not enough to PUT a multi-MB base64 audio body
+    // over mobile data.
+    private val httpClient: OkHttpClient = defaultHttpClient(),
     private val apiBaseUrl: String = "https://api.github.com"
 ) {
     class GitHubException(message: String) : Exception(message)
@@ -73,5 +76,13 @@ class GitHubClient(
                 throw GitHubException("保存に失敗しました（${response.code}）")
             }
         }
+    }
+
+    companion object {
+        private fun defaultHttpClient(): OkHttpClient = OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(5, TimeUnit.MINUTES)
+            .readTimeout(5, TimeUnit.MINUTES)
+            .build()
     }
 }

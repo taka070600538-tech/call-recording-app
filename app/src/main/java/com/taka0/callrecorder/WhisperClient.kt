@@ -4,9 +4,12 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
 import java.io.File
+import java.util.concurrent.TimeUnit
 
 class WhisperClient(
-    private val httpClient: OkHttpClient = OkHttpClient(),
+    // OkHttp's 10s default read/write timeouts are far too short here: uploading a call recording
+    // over mobile data and waiting for Whisper to transcribe it takes tens of seconds or more.
+    private val httpClient: OkHttpClient = defaultHttpClient(),
     private val apiBaseUrl: String = "https://api.openai.com/v1"
 ) {
     class WhisperException(message: String) : Exception(message)
@@ -25,5 +28,13 @@ class WhisperClient(
             }
             return JSONObject(bodyString).getString("text")
         }
+    }
+
+    companion object {
+        private fun defaultHttpClient(): OkHttpClient = OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(5, TimeUnit.MINUTES)
+            .readTimeout(5, TimeUnit.MINUTES)
+            .build()
     }
 }
