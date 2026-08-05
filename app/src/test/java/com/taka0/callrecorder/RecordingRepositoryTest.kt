@@ -11,15 +11,28 @@ class RecordingRepositoryTest {
     @Test
     fun `lists m4a files sorted by recorded time descending`() {
         val dir = Files.createTempDirectory("recordings").toFile()
-        dir.resolve("2026-08-05-0900.m4a").createNewFile()
-        dir.resolve("2026-08-05-1430.m4a").createNewFile()
+        dir.resolve("2026-08-05-090000.m4a").createNewFile()
+        dir.resolve("2026-08-05-143012.m4a").createNewFile()
         dir.resolve("not-a-recording.txt").createNewFile()
 
         val recordings = RecordingRepository(dir).list()
 
         assertEquals(2, recordings.size)
-        assertEquals("2026-08-05-1430.m4a", recordings[0].file.name)
-        assertEquals("2026-08-05-0900.m4a", recordings[1].file.name)
+        assertEquals("2026-08-05-143012.m4a", recordings[0].file.name)
+        assertEquals("2026-08-05-090000.m4a", recordings[1].file.name)
+    }
+
+    @Test
+    fun `distinguishes two recordings started in the same minute`() {
+        val dir = Files.createTempDirectory("recordings").toFile()
+        dir.resolve("2026-08-05-143010.m4a").createNewFile()
+        dir.resolve("2026-08-05-143055.m4a").createNewFile()
+
+        val recordings = RecordingRepository(dir).list()
+
+        assertEquals(2, recordings.size)
+        assertEquals("2026-08-05-143055.m4a", recordings[0].file.name)
+        assertEquals(55, recordings[0].recordedAt.second)
     }
 
     @Test
@@ -33,7 +46,7 @@ class RecordingRepositoryTest {
     @Test
     fun `delete removes the file from disk`() {
         val dir = Files.createTempDirectory("recordings").toFile()
-        val file = dir.resolve("2026-08-05-0900.m4a").apply { createNewFile() }
+        val file = dir.resolve("2026-08-05-090000.m4a").apply { createNewFile() }
         val repository = RecordingRepository(dir)
         val recording = repository.list().first()
 

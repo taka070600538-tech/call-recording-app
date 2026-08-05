@@ -2,7 +2,6 @@ package com.taka0.callrecorder
 
 import java.io.File
 import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
 
 data class Recording(val file: File, val recordedAt: LocalDateTime)
@@ -20,13 +19,10 @@ class RecordingRepository(private val recordingsDir: File) {
 
     private fun parseRecordedAt(nameWithoutExtension: String): LocalDateTime? {
         return try {
-            LocalDateTime.parse(nameWithoutExtension, FORMATTER)
+            // Same formatter that produced the name, so the two can never drift apart.
+            LocalDateTime.parse(nameWithoutExtension, FileNaming.FORMATTER)
         } catch (e: DateTimeParseException) {
             null
         }
-    }
-
-    companion object {
-        private val FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd-HHmm")
     }
 }
