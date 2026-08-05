@@ -58,10 +58,15 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun playRecording(recording: Recording) {
-        MediaPlayer().apply {
-            setDataSource(recording.file.absolutePath)
-            prepare()
-            start()
+        val player = MediaPlayer()
+        try {
+            player.setDataSource(recording.file.absolutePath)
+            player.prepare()
+            player.setOnCompletionListener { it.release() }
+            player.start()
+        } catch (e: Exception) {
+            player.release()
+            android.widget.Toast.makeText(this, "再生できませんでした", android.widget.Toast.LENGTH_SHORT).show()
         }
     }
 
