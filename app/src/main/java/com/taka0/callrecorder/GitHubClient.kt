@@ -30,6 +30,23 @@ class GitHubClient(
         }
     }
 
+    /**
+     * Looks up the current `sha` of a file at [path] without decoding its content as text.
+     * Safe to use for binary files (unlike [getExistingTextFile], which UTF-8 decodes the content).
+     * Returns null when the file does not exist yet.
+     */
+    fun getExistingSha(repo: String, branch: String, path: String, token: String): String? {
+        val url = "$apiBaseUrl/repos/$repo/contents/${GitHubContentRequestBuilder.encodePath(path)}?ref=$branch"
+        httpClient.newCall(authorizedRequest(url, token).get().build()).execute().use { response ->
+            return when (response.code) {
+                200 -> JSONObject(response.body!!.string()).getString("sha")
+                404 -> null
+                401 -> throw GitHubException("トークンが無効です")
+                else -> throw GitHubException("リポジトリの確認に失敗しました（${response.code}）")
+            }
+        }
+    }
+
     fun putTextFile(repo: String, branch: String, path: String, content: String, message: String, sha: String?, token: String) {
         val url = "$apiBaseUrl/repos/$repo/contents/${GitHubContentRequestBuilder.encodePath(path)}"
         putRequest(url, GitHubContentRequestBuilder.textPutBody(message, content, branch, sha), token)

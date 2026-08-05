@@ -8,9 +8,11 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.IOException
 import java.time.LocalDate
 import java.time.LocalTime
 
@@ -39,6 +41,11 @@ class TranscribeActivity : AppCompatActivity() {
         findViewById<Button>(R.id.save_to_github_button).setOnClickListener { saveToGitHub() }
     }
 
+    override fun onDestroy() {
+        super.onDestroy()
+        scope.cancel()
+    }
+
     private fun transcribe() {
         val statusText = findViewById<TextView>(R.id.status_text)
         scope.launch {
@@ -50,6 +57,8 @@ class TranscribeActivity : AppCompatActivity() {
                 findViewById<Button>(R.id.save_to_github_button).isEnabled = true
                 statusText.text = "文字起こし結果を確認・編集してください"
             } catch (e: WhisperClient.WhisperException) {
+                statusText.text = "文字起こしに失敗しました: ${e.message}"
+            } catch (e: IOException) {
                 statusText.text = "文字起こしに失敗しました: ${e.message}"
             }
         }
@@ -79,6 +88,8 @@ class TranscribeActivity : AppCompatActivity() {
                 finish()
             } catch (e: GitHubClient.GitHubException) {
                 statusText.text = "保存に失敗しました: ${e.message}"
+            } catch (e: IOException) {
+                statusText.text = "保存に失敗しました: ${e.message}"
             }
         }
     }
@@ -90,13 +101,14 @@ class TranscribeActivity : AppCompatActivity() {
         val token = store.gitHubToken
 
         val audioPath = DiaryMarkdownFormatter.audioFilePath(folder, recordingFile.name)
+        val existingAudioSha = gitHubClient.getExistingSha(repo, branch, audioPath, token)
         gitHubClient.putBinaryFile(
             repo = repo,
             branch = branch,
             path = audioPath,
             contentBytes = recordingFile.readBytes(),
             message = "audio: ${recordingFile.name}",
-            sha = null,
+            sha = existingAudioSha,
             token = token
         )
 

@@ -63,6 +63,25 @@ class GitHubClientTest {
     }
 
     @Test
+    fun `getExistingSha returns null when file does not exist yet`() {
+        server.enqueue(MockResponse().setResponseCode(404))
+        val result = client.getExistingSha("me/repo", "main", "diary/audio/2026-08-05-1430.m4a", "token123")
+        assertNull(result)
+    }
+
+    @Test
+    fun `getExistingSha returns sha without decoding binary content as text`() {
+        val body = JSONObject()
+            .put("sha", "def456")
+            .put("content", "AQID")
+        server.enqueue(MockResponse().setResponseCode(200).setBody(body.toString()))
+
+        val result = client.getExistingSha("me/repo", "main", "diary/audio/2026-08-05-1430.m4a", "token123")
+
+        assertEquals("def456", result)
+    }
+
+    @Test
     fun `putBinaryFile sends base64 encoded bytes as PUT body`() {
         server.enqueue(MockResponse().setResponseCode(201))
 
