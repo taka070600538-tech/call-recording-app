@@ -15,20 +15,34 @@ class MediaRecorderAudioRecorder(private val context: Context) : AudioRecorder {
             @Suppress("DEPRECATION")
             MediaRecorder()
         }
-        r.setAudioSource(MediaRecorder.AudioSource.MIC)
-        r.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-        r.setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-        r.setOutputFile(outputFile.absolutePath)
-        r.prepare()
-        r.start()
+        try {
+            r.setAudioSource(MediaRecorder.AudioSource.MIC)
+            r.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+            r.setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+            // 16kHz mono @32kbps: Whisper's native input format, and small enough that a long
+            // call stays well under Whisper's 25MB upload limit.
+            r.setAudioChannels(1)
+            r.setAudioSamplingRate(16000)
+            r.setAudioEncodingBitRate(32000)
+            r.setOutputFile(outputFile.absolutePath)
+            r.prepare()
+            r.start()
+        } catch (e: Exception) {
+            // Never leave a configured-but-unstarted recorder holding the microphone.
+            r.release()
+            throw e
+        }
         recorder = r
     }
 
     override fun stop() {
-        recorder?.apply {
-            stop()
-            release()
+        // MediaRecorder.stop() throws RuntimeException("stop failed") for very short recordings.
+        // release() must run regardless, otherwise the microphone stays held by this process.
+        try {
+            recorder?.stop()
+        } finally {
+            recorder?.release()
+            recorder = null
         }
-        recorder = null
     }
 }

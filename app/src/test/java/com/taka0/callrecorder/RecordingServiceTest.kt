@@ -18,13 +18,17 @@ import java.io.File
 class FakeAudioRecorder : AudioRecorder {
     var startedFile: File? = null
     var stopped = false
+    var startCount = 0
+    var stopCount = 0
 
     override fun start(outputFile: File) {
         startedFile = outputFile
+        startCount++
     }
 
     override fun stop() {
         stopped = true
+        stopCount++
     }
 }
 
@@ -64,6 +68,44 @@ class RecordingServiceTest {
         service.onStartCommand(Intent(ApplicationProvider.getApplicationContext(), RecordingService::class.java).setAction(RecordingService.ACTION_STOP), 0, 2)
 
         assertTrue(fake.stopped)
+    }
+
+    @Test
+    fun `a second ACTION_START while recording is ignored`() {
+        val service = Robolectric.buildService(RecordingService::class.java).create().get()
+        val fake = FakeAudioRecorder()
+        service.setAudioRecorderForTest(fake)
+        val startIntent = Intent(ApplicationProvider.getApplicationContext(), RecordingService::class.java).setAction(RecordingService.ACTION_START)
+
+        service.onStartCommand(startIntent, 0, 1)
+        service.onStartCommand(startIntent, 0, 2)
+
+        assertEquals(1, fake.startCount)
+    }
+
+    @Test
+    fun `ACTION_STOP without a prior start does not touch the recorder`() {
+        val service = Robolectric.buildService(RecordingService::class.java).create().get()
+        val fake = FakeAudioRecorder()
+        service.setAudioRecorderForTest(fake)
+
+        service.onStartCommand(Intent(ApplicationProvider.getApplicationContext(), RecordingService::class.java).setAction(RecordingService.ACTION_STOP), 0, 1)
+
+        assertEquals(0, fake.stopCount)
+    }
+
+    @Test
+    fun `a duplicate ACTION_STOP stops the recorder only once`() {
+        val service = Robolectric.buildService(RecordingService::class.java).create().get()
+        val fake = FakeAudioRecorder()
+        service.setAudioRecorderForTest(fake)
+        val stopIntent = Intent(ApplicationProvider.getApplicationContext(), RecordingService::class.java).setAction(RecordingService.ACTION_STOP)
+        service.onStartCommand(Intent(ApplicationProvider.getApplicationContext(), RecordingService::class.java).setAction(RecordingService.ACTION_START), 0, 1)
+
+        service.onStartCommand(stopIntent, 0, 2)
+        service.onStartCommand(stopIntent, 0, 3)
+
+        assertEquals(1, fake.stopCount)
     }
 
     @Test

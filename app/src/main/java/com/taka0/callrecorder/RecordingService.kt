@@ -17,6 +17,7 @@ import java.time.LocalDateTime
 class RecordingService : Service() {
 
     private lateinit var audioRecorder: AudioRecorder
+    private var isRecording = false
 
     override fun onCreate() {
         super.onCreate()
@@ -26,6 +27,19 @@ class RecordingService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // CallStateReceiver always launches this service with startForegroundService(), so the
+        // system requires a matching startForeground() within a few seconds on EVERY start —
+        // including the ACTION_STOP path of a missed/rejected call and the low-storage path.
+        // Failing to promote the service there triggers a ForegroundServiceDidNotStartInTime crash.
+        try {
+            startForeground(NOTIFICATION_ID, buildNotification())
+        } catch (e: SecurityException) {
+            // Android 14+ rejects a "microphone" type foreground service when RECORD_AUDIO
+            // is not granted. Stop cleanly instead of crashing.
+            stopSelf()
+            return START_NOT_STICKY
+        }
+
         when (intent?.action) {
             ACTION_START -> startRecording()
             ACTION_STOP -> stopRecording()
@@ -34,6 +48,10 @@ class RecordingService : Service() {
     }
 
     private fun startRecording() {
+        // During call waiting the phone state goes OFFHOOK -> RINGING -> OFFHOOK, which delivers a
+        // second ACTION_START. Ignore it so the in-flight recording is not abandoned mid-file.
+        if (isRecording) return
+
         val dir = File(getExternalFilesDir(null), "recordings").apply { mkdirs() }
 
         if (StatFs(dir.path).availableBytes < MIN_FREE_BYTES_TO_RECORD) {
@@ -41,31 +59,46 @@ class RecordingService : Service() {
             return
         }
 
-        startForeground(NOTIFICATION_ID, buildNotification())
-
         val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
         audioManager.isSpeakerphoneOn = true
 
         val file = File(dir, FileNaming.recordingFileName(LocalDateTime.now()))
         try {
             audioRecorder.start(file)
+            isRecording = true
         } catch (e: Exception) {
+            // MediaRecorder may have already created a zero-length/corrupt file; remove it so it
+            // does not show up in the recordings list.
+            file.delete()
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
         }
     }
 
     private fun stopRecording() {
+        // Stray STOP (missed/rejected call, or a duplicate IDLE broadcast): nothing was ever
+        // started on this instance, so just tear the foreground state down again.
+        if (!isRecording) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+            return
+        }
+
+        isRecording = false
         try {
             audioRecorder.stop()
         } catch (e: Exception) {
-            // recorder was never successfully started; nothing to stop
+            // MediaRecorder.stop() throws for very short recordings; the recorder is released anyway
         }
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
 
     private fun notifyLowStorageAndStop() {
+        // Drop the ongoing "recording" notification first so the warning below is not removed
+        // together with the foreground state when the service stops.
+        stopForeground(STOP_FOREGROUND_REMOVE)
+
         val channelId = "call_recording"
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(channelId, "通話録音", NotificationManager.IMPORTANCE_DEFAULT)
@@ -76,7 +109,8 @@ class RecordingService : Service() {
             .setContentText("通話を録音できませんでした")
             .setSmallIcon(android.R.drawable.presence_audio_online)
             .build()
-        (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).notify(NOTIFICATION_ID, notification)
+        (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
+            .notify(LOW_STORAGE_NOTIFICATION_ID, notification)
         stopSelf()
     }
 
@@ -101,6 +135,7 @@ class RecordingService : Service() {
         const val ACTION_START = "com.taka0.callrecorder.action.START"
         const val ACTION_STOP = "com.taka0.callrecorder.action.STOP"
         private const val NOTIFICATION_ID = 1001
+        private const val LOW_STORAGE_NOTIFICATION_ID = 1002
         private const val MIN_FREE_BYTES_TO_RECORD = 50L * 1024 * 1024 // 50MB
     }
 }
