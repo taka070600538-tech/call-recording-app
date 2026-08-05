@@ -14,11 +14,14 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.LocalTime
+import java.time.format.DateTimeParseException
 
 class TranscribeActivity : AppCompatActivity() {
 
     private lateinit var recordingFile: File
+    private lateinit var recordedAt: LocalDateTime
     private lateinit var store: SecureSettingsStore
     private val whisperClient = WhisperClient()
     private val gitHubClient = GitHubClient()
@@ -35,6 +38,7 @@ class TranscribeActivity : AppCompatActivity() {
             return
         }
         recordingFile = File(path)
+        recordedAt = parseRecordedAt(intent.getStringExtra(EXTRA_RECORDED_AT))
 
         transcribe()
 
@@ -80,8 +84,9 @@ class TranscribeActivity : AppCompatActivity() {
         scope.launch {
             try {
                 withContext(Dispatchers.IO) {
-                    val now = java.time.LocalDateTime.now()
-                    saveTranscriptAndAudio(now.toLocalDate(), now.toLocalTime(), text)
+                    // Transcription is manual and can happen long after the call, so the diary
+                    // entry must be filed under the recording's time, not the save time.
+                    saveTranscriptAndAudio(recordedAt.toLocalDate(), recordedAt.toLocalTime(), text)
                 }
                 statusText.text = "保存しました"
                 Toast.makeText(this@TranscribeActivity, "保存しました", Toast.LENGTH_SHORT).show()
@@ -133,7 +138,18 @@ class TranscribeActivity : AppCompatActivity() {
         )
     }
 
+    /** Falls back to "now" only if the caller somehow omitted the timestamp extra. */
+    private fun parseRecordedAt(isoValue: String?): LocalDateTime {
+        if (isoValue == null) return LocalDateTime.now()
+        return try {
+            LocalDateTime.parse(isoValue)
+        } catch (e: DateTimeParseException) {
+            LocalDateTime.now()
+        }
+    }
+
     companion object {
         const val EXTRA_RECORDING_PATH = "recording_path"
+        const val EXTRA_RECORDED_AT = "recorded_at"
     }
 }

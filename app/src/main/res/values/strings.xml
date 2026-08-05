@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">通話録音</string>
+    <string name="permission_warning">マイクまたは電話の状態の権限が許可されていないため、通話の自動録音は動作しません。端末の設定＞アプリ＞通話録音＞権限から許可してください。</string>
 </resources>

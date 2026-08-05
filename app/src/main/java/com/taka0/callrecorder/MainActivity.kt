@@ -2,11 +2,19 @@ package com.taka0.callrecorder
 
 import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.media.MediaPlayer
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.PowerManager
+import android.provider.Settings
+import android.view.View
+import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import java.io.File
@@ -16,7 +24,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var repository: RecordingRepository
     private lateinit var adapter: RecordingsAdapter
 
-    private val permissionLauncher = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { }
+    private val permissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+            updatePermissionWarning()
+            requestIgnoreBatteryOptimizations()
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -47,6 +59,9 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         adapter.updateRecordings(repository.list())
+        // Also refresh here so the warning disappears when the user grants the permissions from
+        // system settings and comes back to the app.
+        updatePermissionWarning()
     }
 
     private fun requestRequiredPermissions() {
@@ -55,6 +70,35 @@ class MainActivity : AppCompatActivity() {
             permissions.add(Manifest.permission.POST_NOTIFICATIONS)
         }
         permissionLauncher.launch(permissions.toTypedArray())
+    }
+
+    private fun hasRecordingPermissions(): Boolean {
+        return listOf(Manifest.permission.RECORD_AUDIO, Manifest.permission.READ_PHONE_STATE)
+            .all { ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED }
+    }
+
+    private fun updatePermissionWarning() {
+        findViewById<TextView>(R.id.permission_warning)?.visibility =
+            if (hasRecordingPermissions()) View.GONE else View.VISIBLE
+    }
+
+    /**
+     * Android 12+ restricts starting a microphone foreground service from a background broadcast
+     * receiver. Being exempt from battery optimization gives the app the background-start
+     * allowlist window it needs when a call comes in while the app is not in the foreground.
+     */
+    private fun requestIgnoreBatteryOptimizations() {
+        val powerManager = getSystemService(PowerManager::class.java) ?: return
+        if (powerManager.isIgnoringBatteryOptimizations(packageName)) return
+
+        val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+            .setData(Uri.parse("package:$packageName"))
+        try {
+            startActivity(intent)
+        } catch (e: android.content.ActivityNotFoundException) {
+            // Some devices/ROMs do not expose this settings screen; recording still works when
+            // the app happens to be allowed to start in the background.
+        }
     }
 
     private fun playRecording(recording: Recording) {
@@ -74,11 +118,19 @@ class MainActivity : AppCompatActivity() {
         startActivity(
             Intent(this, TranscribeActivity::class.java)
                 .putExtra(TranscribeActivity.EXTRA_RECORDING_PATH, recording.file.absolutePath)
+                .putExtra(TranscribeActivity.EXTRA_RECORDED_AT, recording.recordedAt.toString())
         )
     }
 
     private fun deleteRecording(recording: Recording) {
-        repository.delete(recording)
-        adapter.updateRecordings(repository.list())
+        AlertDialog.Builder(this)
+            .setTitle("削除しますか？")
+            .setMessage("この録音を削除します。元に戻せません。")
+            .setPositiveButton("削除") { _, _ ->
+                repository.delete(recording)
+                adapter.updateRecordings(repository.list())
+            }
+            .setNegativeButton("キャンセル", null)
+            .show()
     }
 }
