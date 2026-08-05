@@ -1,5 +1,6 @@
 package com.taka0.callrecorder
 
+import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -13,23 +14,30 @@ import org.robolectric.annotation.Config
 @Config(sdk = [34])
 class SecureSettingsStoreTest {
 
+    private fun newStore(): SecureSettingsStore {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val prefs = context.getSharedPreferences("test_secure_settings_${System.nanoTime()}", Context.MODE_PRIVATE)
+        return SecureSettingsStore(prefs)
+    }
+
     @Test
     fun `defaults branch to main and folder to diary`() {
-        val store = SecureSettingsStore(ApplicationProvider.getApplicationContext())
+        val store = newStore()
         assertEquals("main", store.gitHubBranch)
         assertEquals("diary", store.gitHubFolder)
     }
 
     @Test
-    fun `persists values across instances backed by the same context`() {
-        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
-        SecureSettingsStore(context).apply {
+    fun `persists values across instances backed by the same preferences`() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val prefs = context.getSharedPreferences("test_secure_settings_shared", Context.MODE_PRIVATE)
+        SecureSettingsStore(prefs).apply {
             openAiApiKey = "sk-test"
             gitHubToken = "ghp-test"
             gitHubRepo = "me/call-recording-app"
         }
 
-        val reloaded = SecureSettingsStore(context)
+        val reloaded = SecureSettingsStore(prefs)
         assertEquals("sk-test", reloaded.openAiApiKey)
         assertEquals("ghp-test", reloaded.gitHubToken)
         assertEquals("me/call-recording-app", reloaded.gitHubRepo)
@@ -37,8 +45,7 @@ class SecureSettingsStoreTest {
 
     @Test
     fun `is not configured until token and repo are set`() {
-        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
-        val store = SecureSettingsStore(context)
+        val store = newStore()
         assertFalse(store.isConfigured())
 
         store.gitHubToken = "ghp-test"

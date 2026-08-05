@@ -1,17 +1,13 @@
 package com.taka0.callrecorder
 
 import android.content.Context
+import android.content.SharedPreferences
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 
-class SecureSettingsStore(context: Context) {
-    private val prefs = EncryptedSharedPreferences.create(
-        context,
-        "call_recorder_secure_settings",
-        MasterKey.Builder(context).setKeyScheme(MasterKey.KeyScheme.AES256_GCM).build(),
-        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-    )
+class SecureSettingsStore(private val prefs: SharedPreferences) {
+
+    constructor(context: Context) : this(createEncryptedPreferences(context))
 
     var openAiApiKey: String
         get() = prefs.getString(KEY_OPENAI_API_KEY, "") ?: ""
@@ -41,5 +37,15 @@ class SecureSettingsStore(context: Context) {
         private const val KEY_GITHUB_REPO = "github_repo"
         private const val KEY_GITHUB_BRANCH = "github_branch"
         private const val KEY_GITHUB_FOLDER = "github_folder"
+
+        private fun createEncryptedPreferences(context: Context): SharedPreferences {
+            return EncryptedSharedPreferences.create(
+                context,
+                "call_recorder_secure_settings",
+                MasterKey.Builder(context).setKeyScheme(MasterKey.KeyScheme.AES256_GCM).build(),
+                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+            )
+        }
     }
 }
