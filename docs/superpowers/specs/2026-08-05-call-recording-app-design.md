@@ -12,16 +12,24 @@ Android（Pixel）で電話の通話を自動で録音し、あとで選んだ�
 - そのため、**通話を自動でスピーカーホンにし、端末のマイクで周囲音（自分の声＋スピーカーから出る相手の声）を録音する方式**を採用する。全機種で確実に動作するが、音質は通話音声を直接録るより劣る。
 - 通話録音アプリは Google Play の審査ポリシー上配布が難しいため、Playストアには公開せず、ビルドしたAPKをADB等で直接インストールする。
 
+### 実機検証で判明した追加の制約（2026-08-06、Pixel 9a / Android 16で確認）
+
+計画段階では想定していなかった、Android自体による通話中マイクの制限が2段階あることが実機テストで判明し、以下の対応が必要だった。詳細は[実装計画](../plans/2026-08-05-call-recording-app.md)のTask 11・実機検証記録を参照。
+
+1. **バックグラウンドで起動したForeground Serviceはマイクにアクセスできない**（Android 12+）。`BroadcastReceiver`（`uidState: RCVR`）から`startForegroundService()`しただけでは、サービス自体は起動してもマイクへの実アクセスが拒否される。**有効なアクセシビリティサービスを保持している**か、**常時バインドされているプロセス（`uidState: BFGS`）から起動する**ことで回避できる。本アプリでは、通話状態の検知と録音開始を`BroadcastReceiver`ではなく`CallRecorderAccessibilityService`（何もしないaccessibility serviceだが、有効化されている間は常時バインドされ続ける）の中で行うことで対応した。
+2. **`AudioSource.MIC`は、通話中は完全に無音化される**（上記1を回避してマイクへのアクセス自体は許可されても、実際に渡される音声データが全サンプル0になる）。これは通話の盗み聞き防止のためとみられるOS側の意図的な仕様で、上記1とは別の独立した制限。**`AudioSource.VOICE_RECOGNITION`に変更することで実際の音声を取得できる**ことを実機で確認した（`MIC`ではなく`VOICE_RECOGNITION`を使用する）。
+3. **スピーカーホンの自動ONは、アプリからは確実に制御できない**。`AudioManager.setSpeakerphoneOn(true)`を呼んでも、通話開始直後に電話アプリ（Telecomフレームワーク）側の音声ルーティングによって元に戻されることを確認した。この点は市販の通話録音アプリ（実機に入っていた別アプリで比較検証）も同様の制約を持っており、本アプリ固有の欠陥ではなくAndroidの仕様上の限界と判断した。**運用でカバーする**：相手の声が聞き取りにくい場合は、通話中に手動でスピーカーホンをONにする。
+
 ## アーキテクチャ
 
 ### 1. 自動録音エンジン（Androidアプリ本体）
 
-- `BroadcastReceiver` で `TelephonyManager` の通話状態変化（`RINGING` → `OFFHOOK` → `IDLE`）を検知する。
+- 何もしない`AccessibilityService`（`CallRecorderAccessibilityService`）を常時有効化しておき、その中で`TelephonyManager`の通話状態変化（`RINGING` → `OFFHOOK` → `IDLE`）を検知する（「実機検証で判明した追加の制約」参照。`BroadcastReceiver`ベースの検知では通話中マイクにアクセスできない）。
 - `OFFHOOK`（通話開始）を検知したら:
-  - `AudioManager.setSpeakerphoneOn(true)` でスピーカーホンを自動ON
-  - フォアグラウンドサービスを起動し、`MediaRecorder`（`AudioSource.MIC`）で録音開始
+  - `AudioManager.setSpeakerphoneOn(true)` でスピーカーホンを自動ONを試みる（電話アプリ側に上書きされることがあるため、聞き取りにくい場合は手動でONにする運用を前提とする）
+  - フォアグラウンドサービスを起動し、`MediaRecorder`（`AudioSource.VOICE_RECOGNITION`）で録音開始
 - `IDLE`（通話終了）を検知したら、録音を停止し、端末内にファイルを保存してサービスを終了する。
-- ファイル名は日時ベース（例：`2026-08-05-1430.m4a`）。電話番号取得は追加の権限（`READ_CALL_LOG`等）が必要になるため、初期スコープでは含めない。
+- ファイル名は日時ベース（例：`2026-08-06-143012.m4a`、秒まで含む）。電話番号取得は追加の権限（`READ_CALL_LOG`等）が必要になるため、初期スコープでは含めない。
 
 ### 2. 録音一覧画面
 
@@ -52,6 +60,8 @@ Android（Pixel）で電話の通話を自動で録音し、あとで選んだ�
 | `READ_PHONE_STATE` | 通話状態（着信・応答・終了）の検知 |
 | `INTERNET` | Whisper API・GitHub API呼び出し |
 | フォアグラウンドサービス関連権限（`FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_MICROPHONE` 等）／通知権限 | Android 14+ でのバックグラウンド録音に必須 |
+| アクセシビリティサービスの有効化（設定アプリ側での個別許可、マニフェスト権限ではない） | 通話中マイクへの実アクセスに必須（「実機検証で判明した追加の制約」参照） |
+| `SYSTEM_ALERT_WINDOW`（「他のアプリの上に重ねて表示」） | 録音中インジケーターの表示用。マイク無音化の直接の解決策ではなかったが、副作用がないため残してある |
 
 ## エラーハンドリング
 

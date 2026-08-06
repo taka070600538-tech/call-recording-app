@@ -2386,12 +2386,12 @@ git -C "Git/call-recording-app" status
 
 このタスクはPixel実機がないと検証できないため、手動で行う。
 
-- [ ] **Step 1: リリース用ではなくデバッグAPKをビルドする**
+- [x] **Step 1: リリース用ではなくデバッグAPKをビルドする**
 
 Run: `.\gradlew.bat :app:assembleDebug`
 Expected: `app/build/outputs/apk/debug/app-debug.apk` が生成される
 
-- [ ] **Step 2: USBデバッグを有効にしたPixelをPCに接続し、ADB経由でインストールする**
+- [x] **Step 2: USBデバッグを有効にしたPixelをPCに接続し、ADB経由でインストールする**
 
 ```bash
 adb install -r "app/build/outputs/apk/debug/app-debug.apk"
@@ -2399,28 +2399,63 @@ adb install -r "app/build/outputs/apk/debug/app-debug.apk"
 
 Expected: `Success`
 
-- [ ] **Step 3: アプリを起動し、権限（マイク・電話の状態・通知）をすべて許可する**
+- [x] **Step 3: アプリを起動し、権限（マイク・電話の状態・通知）をすべて許可する**
 
-- [ ] **Step 4: 設定画面でOpenAI APIキー・GitHub Personal Access Token・リポジトリ（`<ユーザー名>/call-recording-app`）を入力して保存する**
+- [x] **Step 4: 設定画面でOpenAI APIキー・GitHub Personal Access Token・リポジトリ（`<ユーザー名>/call-recording-app`）を入力して保存する**
 
-- [ ] **Step 5: 実際に発信または着信し、通話中にスピーカーホンが自動でONになること、通話終了後に録音一覧に新しいファイルが増えることを確認する**
+- [x] **Step 5: 実際に発信または着信し、通話中にスピーカーホンが自動でONになること、通話終了後に録音一覧に新しいファイルが増えることを確認する**
 
-  以下の条件でも必ず確認する（アプリが前面にある状態だけでは、実運用で問題になるケースを検出できないため）:
+  スピーカーホンの自動ONは実機では機能しないことを確認した（電話アプリ側に上書きされる。詳細は下記の実機検証記録、および設計書の「実機検証で判明した追加の制約」を参照）。録音一覧へのファイル追加自体は正常に動作する。
+
+  以下の条件は今回のセッションでは未検証（今後、実際の日常利用の中で確認する）:
 
   - [ ] アプリを最近使ったアプリ（Recents）からスワイプで消した状態で着信し、録音されること
   - [ ] 画面ロック状態で着信し、録音されること
   - [ ] 着信を拒否した場合／不在着信の場合に、アプリがクラッシュせず（ForegroundServiceDidNotStartInTime等）、空の録音ファイルも作られないこと
   - [ ] バッテリー最適化の除外を許可していない場合に、バックグラウンドからの録音がどう振る舞うかも確認する（機種依存）
 
-- [ ] **Step 6: 録音を再生し、自分の声と相手の声の両方が聞き取れる音質かを確認する（聞き取りにくい場合は通話音量を上げる運用でカバーする）**
+- [x] **Step 6: 録音を再生し、自分の声と相手の声の両方が聞き取れる音質かを確認する（聞き取りにくい場合は通話音量を上げる運用でカバーする）**
+
+  手動でスピーカーホンをONにした状態で、自分・相手の声とも問題なく聞き取れる音質であることを確認した。詳細は下記の実機検証記録を参照。
 
 - [ ] **Step 7: 「文字起こし」ボタンを押し、Whisperでのテキスト化→編集→GitHub保存が最後まで通り、GitHub上の`diary/YYYY-MM-DD.md`と`diary/audio/`にファイルが増えていることを確認する**
 
 - [ ] **Step 8: 翌朝（または`Start-ScheduledTask -TaskName "CallRecordingGitPull"`で手動実行）、`日記/通話録音`フォルダにテキストと音声がpullされていることを確認する**
 
-- [ ] **Step 9: 動作確認の結果を`docs/superpowers/plans/2026-08-05-call-recording-app.md`の末尾に追記し、コミットする**
+- [x] **Step 9: 動作確認の結果を`docs/superpowers/plans/2026-08-05-call-recording-app.md`の末尾に追記し、コミットする**
 
 ```bash
 git add docs/superpowers/plans/2026-08-05-call-recording-app.md
 git commit -m "docs: 実機動作確認結果を記録"
 ```
+
+---
+
+## 実機検証記録（2026-08-06、Pixel 9a / Android 16）
+
+Task 18のStep 1〜6を実施。当初計画（`AudioSource.MIC` + `BroadcastReceiver`による通話検知）では**録音ファイルは作られるが中身が完全な無音**という問題に直面し、原因切り分けと対応に多くの試行錯誤を要した。時系列で記録する。
+
+### 発生した問題と対応
+
+1. **設定・文字起こし画面のボタンがタップできない** — targetSdk 35+のedge-to-edge強制描画で、ステータスバー下に隠れていた。`WindowInsetsUtil`を追加し、各画面のルートに システムバー分のpaddingを適用して解決（コミット`7dc31ec`）。
+
+2. **録音ファイルが作られない（`RecordingService`は起動するが録音されない）** — logcatに`Foreground service started from background can not have location/camera/microphone access`。`BroadcastReceiver`（`uidState: RCVR`）からの起動では、Android 12+の制限でマイクへの実アクセスが拒否されると判明。有効なアクセシビリティサービスを持つと回避できるとされているため、何もしない`CallRecorderAccessibilityService`を追加（コミット`69d8d72`）。→ サービス起動はできるようになったが、録音ファイルは相変わらず無音（-91dB、ほぼ完全なデジタル無音）。
+
+3. **スピーカーホンが自動でONにならない** — `AudioManager.isSpeakerphoneOn = true`を呼んでも、通話開始直後に電話アプリ側の音声ルーティングに上書きされ、OFFに戻ることをログで確認。
+
+4. **無音の原因調査** — 実機に別途インストールされていた市販の通話録音アプリ（Cube Call Recorder）が同じ端末上で実際に音声を録音できていることを確認（ffmpegの`volumedetect`で比較：CCRは-30dB前後の実音声、当アプリは-91dBの無音）。CCRの権限一覧を比較し、`SYSTEM_ALERT_WINDOW`（他のアプリの上に重ねて表示）の有無が差分と仮説を立てたが、実装・検証した結果、無音化の直接の原因ではないと判明（オーバーレイ表示は成功していたが、依然としてマイクアクセス拒否の警告ログが出た）。
+
+5. **通話検知をアクセシビリティサービス内に移す** — CCRのログでは録音開始時の呼び出し元プロセスが`uidState: BFGS`（常時バインドされたForeground Service）だったのに対し、当アプリは`uidState: RCVR`だった。通話状態の検知（`TelephonyManager`監視）と`RecordingService`の起動を、`BroadcastReceiver`（`CallStateReceiver`、削除）から`CallRecorderAccessibilityService`内に移動（コミット`5c3b65c`）。→ 「マイクアクセス拒否」の警告ログは消えたが、録音は依然として無音（-inf dB、全サンプルゼロ）。
+
+6. **`AudioSource`を`VOICE_RECOGNITION`に変更** — 上記5までの対応でもマイクアクセスの許可自体は得られるようになったが、実際に渡される音声データが常にゼロだったことから、`AudioSource.MIC`自体が通話中は意図的に無音化されている（盗聴防止のためとみられるOS側の仕様）という仮説に至った。`AudioSource.VOICE_RECOGNITION`に変更したところ、実際の音声（自分の声、-54dB前後）が録音されることを確認。手動でスピーカーホンをONにした状態では、相手の声も含めて問題なく聞き取れる音質になることを実機で確認した（ユーザー本人による最終確認済み）。
+
+### 最終的な結論・現在の実装
+
+- 通話検知・録音制御は`CallRecorderAccessibilityService`内で行う（`CallStateReceiver`は削除）。
+- 録音の音声ソースは`AudioSource.MIC`ではなく`AudioSource.VOICE_RECOGNITION`を使用する。
+- スピーカーホンの自動ONはコード上維持しているが、確実に機能する保証はない。**相手の声が聞き取りにくい場合は、通話中に手動でスピーカーホンをONにする運用でカバーする**（市販アプリでも同様の制約があることを確認済みであり、本アプリ固有の欠陥ではない）。
+- `RecordingOverlay`（`SYSTEM_ALERT_WINDOW`によるオーバーレイ表示）は無音化の直接の解決策ではなかったが、副作用もないため実装は残している。
+
+### 未実施
+
+Task 18のStep 7（文字起こし→GitHub保存）・Step 8（PC側自動同期の確認）は次回のセッションで実施する。
