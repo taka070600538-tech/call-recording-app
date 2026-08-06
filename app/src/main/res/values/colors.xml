@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Overlay tint for the selected recording row. A concrete color (rather than
+         ?attr/colorControlHighlight) is used because Robolectric 4.15 fails to resolve theme
+         attribute references inside a StateListDrawable <item> against compileSdk 36 resources
+         (see task-2-report.md for details); on a real device the theme attribute resolves fine,
+         but tests need something Robolectric can actually inflate. -->
+    <color name="recording_item_selected_bg">#33000000</color>
+</resources>

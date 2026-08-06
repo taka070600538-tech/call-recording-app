@@ -3,6 +3,9 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
+    android:background="@drawable/bg_recording_item"
+    android:clickable="true"
+    android:focusable="true"
     android:padding="16dp">
 
     <TextView
@@ -10,23 +13,17 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
+        android:maxLines="1"
+        android:ellipsize="end"
         android:textSize="16sp" />
 
-    <Button
-        android:id="@+id/play_button"
+    <TextView
+        android:id="@+id/saved_badge"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="再生" />
-
-    <Button
-        android:id="@+id/transcribe_button"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="文字起こし" />
-
-    <Button
-        android:id="@+id/delete_button"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="削除" />
+        android:layout_marginStart="8dp"
+        android:layout_gravity="center_vertical"
+        android:text="保存済"
+        android:textSize="14sp"
+        android:visibility="gone" />
 </LinearLayout>

@@ -89,6 +89,7 @@ class TranscribeActivity : AppCompatActivity() {
                     // entry must be filed under the recording's time, not the save time.
                     saveTranscriptAndAudio(recordedAt.toLocalDate(), recordedAt.toLocalTime(), text)
                 }
+                SavedRecordingsStore(applicationContext).markSaved(recordingFile.name)
                 statusText.text = "保存しました"
                 Toast.makeText(this@TranscribeActivity, "保存しました", Toast.LENGTH_SHORT).show()
                 finish()
