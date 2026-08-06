@@ -20,17 +20,23 @@ class DiaryMarkdownFormatterTest {
     }
 
     @Test
-    fun `entry block includes time heading text and audio link`() {
+    fun `entry block includes time heading, phone number, text and audio link`() {
         val block = DiaryMarkdownFormatter.entryBlock(
-            LocalTime.of(14, 30), "テスト通話の内容", "audio/2026-08-05-1430.m4a"
+            LocalTime.of(14, 30), "08088004673", "テスト通話の内容", "audio/2026-08-05-1430.m4a"
         )
-        assertEquals("## 14:30\n\nテスト通話の内容\n\n[音声を再生](audio/2026-08-05-1430.m4a)\n", block)
+        assertEquals("## 14:30 — 08088004673\n\nテスト通話の内容\n\n[音声を再生](audio/2026-08-05-1430.m4a)\n", block)
     }
 
     @Test
     fun `entry block without audio link`() {
-        val block = DiaryMarkdownFormatter.entryBlock(LocalTime.of(9, 5), "メモ", null)
-        assertEquals("## 09:05\n\nメモ\n", block)
+        val block = DiaryMarkdownFormatter.entryBlock(LocalTime.of(9, 5), "08088004673", "メモ", null)
+        assertEquals("## 09:05 — 08088004673\n\nメモ\n", block)
+    }
+
+    @Test
+    fun `entry block shows unknown placeholder when phone number is null`() {
+        val block = DiaryMarkdownFormatter.entryBlock(LocalTime.of(9, 5), null, "メモ", null)
+        assertEquals("## 09:05 — 不明\n\nメモ\n", block)
     }
 
     @Test

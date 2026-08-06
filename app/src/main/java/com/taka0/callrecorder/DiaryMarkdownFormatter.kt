@@ -16,8 +16,8 @@ object DiaryMarkdownFormatter {
         return "$folder/audio/$fileName"
     }
 
-    fun entryBlock(time: LocalTime, text: String, audioRelativePath: String?): String {
-        val heading = "## ${time.format(TIME_FORMATTER)}\n\n"
+    fun entryBlock(time: LocalTime, phoneNumber: String?, text: String, audioRelativePath: String?): String {
+        val heading = "## ${time.format(TIME_FORMATTER)} — ${phoneNumber ?: "不明"}\n\n"
         return if (audioRelativePath != null) {
             "$heading$text\n\n[音声を再生]($audioRelativePath)\n"
         } else {
