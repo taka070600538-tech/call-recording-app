@@ -35,10 +35,12 @@ class FakeAudioRecorder : AudioRecorder {
 class FakeCallLogLookup(private val numbers: MutableList<String?>) : CallLogLookup {
     var callCount = 0
     var lastAfterEpochMillis: Long? = null
+    var lastBeforeEpochMillis: Long? = null
 
-    override fun mostRecentNumber(afterEpochMillis: Long): String? {
+    override fun mostRecentNumber(afterEpochMillis: Long, beforeEpochMillis: Long): String? {
         callCount++
         lastAfterEpochMillis = afterEpochMillis
+        lastBeforeEpochMillis = beforeEpochMillis
         return if (numbers.isNotEmpty()) numbers.removeAt(0) else null
     }
 }
@@ -148,7 +150,7 @@ class RecordingServiceTest {
     }
 
     @Test
-    fun `ACTION_STOP passes a baseline near the recording start time to CallLogLookup`() {
+    fun `ACTION_STOP passes a bounded window around the recording start time to CallLogLookup`() {
         val service = Robolectric.buildService(RecordingService::class.java).create().get()
         service.setAudioRecorderForTest(FakeAudioRecorder())
         service.setBackgroundExecutorForTest { it.run() }
@@ -160,12 +162,15 @@ class RecordingServiceTest {
 
         service.onStartCommand(Intent(ApplicationProvider.getApplicationContext(), RecordingService::class.java).setAction(RecordingService.ACTION_STOP), 0, 2)
 
-        // ベースラインは録音開始時刻から安全マージン(数秒)を引いた値になるはずなので、
-        // 「録音開始直前〜直後」のごく短い範囲に収まっているはずで、0や無関係な値ではないことを確認する。
-        val baseline = lookup.lastAfterEpochMillis
-        assertNotNull(baseline)
-        assertTrue(baseline!! <= afterStart)
-        assertTrue(baseline >= beforeStart - 10_000L)
+        // 下限は録音開始より前(呼び出し時間の余裕分)、上限は録音開始より後(クロックスキュー許容分)に
+        // なるはずで、かつ下限 < 上限であることを確認する。
+        val after = lookup.lastAfterEpochMillis
+        val before = lookup.lastBeforeEpochMillis
+        assertNotNull(after)
+        assertNotNull(before)
+        assertTrue(after!! < beforeStart)
+        assertTrue(before!! > afterStart)
+        assertTrue(after < before)
     }
 
     @Test
