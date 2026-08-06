@@ -42,9 +42,8 @@ class MainActivity : AppCompatActivity() {
 
         adapter = RecordingsAdapter(
             recordings = repository.list(),
-            onPlay = ::playRecording,
-            onTranscribe = ::openTranscribe,
-            onDelete = ::deleteRecording
+            savedFileNames = SavedRecordingsStore(this).all(),
+            onSelectionChanged = { }
         )
 
         findViewById<RecyclerView>(R.id.recordings_list).apply {
@@ -71,7 +70,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        adapter.updateRecordings(repository.list())
+        adapter.updateRecordings(repository.list(), SavedRecordingsStore(this).all())
         // Also refresh here so the warnings disappear when the user grants the permission/
         // enables the accessibility service from system settings and comes back to the app.
         updatePermissionWarning()
@@ -169,7 +168,7 @@ class MainActivity : AppCompatActivity() {
             .setMessage("この録音を削除します。元に戻せません。")
             .setPositiveButton("削除") { _, _ ->
                 repository.delete(recording)
-                adapter.updateRecordings(repository.list())
+                adapter.updateRecordings(repository.list(), SavedRecordingsStore(this).all())
             }
             .setNegativeButton("キャンセル", null)
             .show()
