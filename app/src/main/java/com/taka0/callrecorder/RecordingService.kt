@@ -20,6 +20,7 @@ class RecordingService : Service() {
     private var isRecording = false
     private lateinit var callLogLookup: CallLogLookup
     private var currentFile: File? = null
+    private var recordingStartEpochMillis: Long = 0L
     private var backgroundExecutor: (Runnable) -> Unit = { Thread(it).start() }
 
     override fun onCreate() {
@@ -73,6 +74,7 @@ class RecordingService : Service() {
 
         val file = File(dir, FileNaming.recordingFileName(LocalDateTime.now()))
         currentFile = file
+        recordingStartEpochMillis = System.currentTimeMillis()
         try {
             audioRecorder.start(file)
             isRecording = true
@@ -111,21 +113,26 @@ class RecordingService : Service() {
         val file = currentFile ?: return
         val appContext = applicationContext
         val lookup = callLogLookup
+        // 録音開始時刻より前のCallLog行は別の通話のものである可能性があるため対象外にする。
+        // CallLogのdate列は録音開始時刻とほぼ一致するが、ミリ秒未満の丸め等でごく僅かに録音開始
+        // より早い可能性があるため、安全マージンを引いておく。
+        val baselineEpochMillis = recordingStartEpochMillis - CALL_LOG_BASELINE_MARGIN_MS
         backgroundExecutor(Runnable {
             // This Runnable may run well after the Service instance is destroyed (stopSelf() runs
             // right after this method returns), so it must never touch the Service's own fields —
-            // only the locally-captured vals above (appContext, file, lookup) are safe to use here.
-            // It also runs on a bare Thread with no Android component supervising it, so any
-            // uncaught exception here would crash the whole app process; everything in this body
-            // must therefore be swallowed and never allowed to escape the Runnable.
+            // only the locally-captured vals above (appContext, file, lookup, baselineEpochMillis)
+            // are safe to use here. It also runs on a bare Thread with no Android component
+            // supervising it, so any uncaught exception here would crash the whole app process;
+            // everything in this body must therefore be swallowed and never allowed to escape the
+            // Runnable.
             try {
-                var number = lookup.mostRecentNumber()
+                var number = lookup.mostRecentNumber(baselineEpochMillis)
                 var attempts = 0
                 // CallLogへの書き込みが通話終了から10秒以上遅れることが実機で確認されている。
                 // メインスレッドをブロックしないよう、この再試行は必ずバックグラウンドスレッドで実行する。
                 while (number == null && attempts < MAX_CALL_LOG_RETRIES) {
                     Thread.sleep(CALL_LOG_RETRY_DELAY_MS)
-                    number = lookup.mostRecentNumber()
+                    number = lookup.mostRecentNumber(baselineEpochMillis)
                     attempts++
                 }
                 CallMetadataStore(appContext).save(file.name, number)
@@ -223,5 +230,6 @@ class RecordingService : Service() {
         private const val MIN_FREE_BYTES_TO_RECORD = 50L * 1024 * 1024 // 50MB
         private const val MAX_CALL_LOG_RETRIES = 240
         private const val CALL_LOG_RETRY_DELAY_MS = 2000L
+        private const val CALL_LOG_BASELINE_MARGIN_MS = 2000L
     }
 }
