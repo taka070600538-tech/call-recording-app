@@ -20,6 +20,7 @@ class RecordingService : Service() {
     private var isRecording = false
     private lateinit var callLogLookup: CallLogLookup
     private var currentFile: File? = null
+    private var backgroundExecutor: (Runnable) -> Unit = { Thread(it).start() }
 
     override fun onCreate() {
         super.onCreate()
@@ -108,21 +109,24 @@ class RecordingService : Service() {
 
     private fun savePhoneNumberForCurrentFile() {
         val file = currentFile ?: return
-        val phoneNumber = try {
-            var number = callLogLookup.mostRecentNumber()
-            var attempts = 0
-            // CallLogへの書き込みが通話終了直後にはまだ完了していないことがあるため、
-            // 実機テストで観測された遅延を吸収できるだけの回数・間隔で再試行する。
-            while (number == null && attempts < MAX_CALL_LOG_RETRIES) {
-                Thread.sleep(CALL_LOG_RETRY_DELAY_MS)
-                number = callLogLookup.mostRecentNumber()
-                attempts++
+        val appContext = applicationContext
+        backgroundExecutor(Runnable {
+            val phoneNumber = try {
+                var number = callLogLookup.mostRecentNumber()
+                var attempts = 0
+                // CallLogへの書き込みが通話終了から10秒以上遅れることが実機で確認されている。
+                // メインスレッドをブロックしないよう、この再試行は必ずバックグラウンドスレッドで実行する。
+                while (number == null && attempts < MAX_CALL_LOG_RETRIES) {
+                    Thread.sleep(CALL_LOG_RETRY_DELAY_MS)
+                    number = callLogLookup.mostRecentNumber()
+                    attempts++
+                }
+                number
+            } catch (e: Exception) {
+                null
             }
-            number
-        } catch (e: Exception) {
-            null
-        }
-        CallMetadataStore(applicationContext).save(file.name, phoneNumber)
+            CallMetadataStore(appContext).save(file.name, phoneNumber)
+        })
     }
 
     private fun notifyLowStorageAndStop() {
@@ -166,6 +170,10 @@ class RecordingService : Service() {
         callLogLookup = lookup
     }
 
+    fun setBackgroundExecutorForTest(executor: (Runnable) -> Unit) {
+        backgroundExecutor = executor
+    }
+
     fun getCurrentFileNameForTest(): String? = currentFile?.name
 
     companion object {
@@ -174,7 +182,7 @@ class RecordingService : Service() {
         private const val NOTIFICATION_ID = 1001
         private const val LOW_STORAGE_NOTIFICATION_ID = 1002
         private const val MIN_FREE_BYTES_TO_RECORD = 50L * 1024 * 1024 // 50MB
-        private const val MAX_CALL_LOG_RETRIES = 5
-        private const val CALL_LOG_RETRY_DELAY_MS = 500L
+        private const val MAX_CALL_LOG_RETRIES = 20
+        private const val CALL_LOG_RETRY_DELAY_MS = 2000L
     }
 }
