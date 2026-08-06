@@ -13,6 +13,7 @@ class SettingsActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
+        WindowInsetsUtil.applySystemBarPadding(findViewById(R.id.settings_root))
         store = SecureSettingsStore(applicationContext)
 
         val openAiInput = findViewById<EditText>(R.id.openai_key_input).apply { setText(store.openAiApiKey) }

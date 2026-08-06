@@ -33,6 +33,7 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        WindowInsetsUtil.applySystemBarPadding(findViewById(R.id.main_root))
 
         val recordingsDir = File(getExternalFilesDir(null), "recordings").apply { mkdirs() }
         repository = RecordingRepository(recordingsDir)

@@ -30,6 +30,7 @@ class TranscribeActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_transcribe)
+        WindowInsetsUtil.applySystemBarPadding(findViewById(R.id.transcribe_root))
         store = SecureSettingsStore(applicationContext)
 
         val path = intent.getStringExtra(EXTRA_RECORDING_PATH)
