@@ -1,4 +1,7 @@
 <resources>
     <string name="app_name">通話録音</string>
     <string name="permission_warning">マイクまたは電話の状態の権限が許可されていないため、通話の自動録音は動作しません。端末の設定＞アプリ＞通話録音＞権限から許可してください。</string>
+    <string name="accessibility_warning">Androidの制限により、アクセシビリティ設定でこのアプリを有効にしないと通話中にマイクへアクセスできず、録音が行われません。</string>
+    <string name="accessibility_service_description">通話中に自動で録音するため、バックグラウンドからマイクへアクセスする許可として使用します。画面内容の読み取りや操作は行いません。</string>
+    <string name="open_accessibility_settings">アクセシビリティ設定を開く</string>
 </resources>

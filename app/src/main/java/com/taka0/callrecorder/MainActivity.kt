@@ -1,6 +1,7 @@
 package com.taka0.callrecorder
 
 import android.Manifest
+import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.MediaPlayer
@@ -10,6 +11,7 @@ import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
 import android.view.View
+import android.view.accessibility.AccessibilityManager
 import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
@@ -54,15 +56,20 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent(this, SettingsActivity::class.java))
         }
 
+        findViewById<android.widget.Button>(R.id.open_accessibility_settings_button).setOnClickListener {
+            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+        }
+
         requestRequiredPermissions()
     }
 
     override fun onResume() {
         super.onResume()
         adapter.updateRecordings(repository.list())
-        // Also refresh here so the warning disappears when the user grants the permissions from
-        // system settings and comes back to the app.
+        // Also refresh here so the warnings disappear when the user grants the permission/
+        // enables the accessibility service from system settings and comes back to the app.
         updatePermissionWarning()
+        updateAccessibilityWarning()
     }
 
     private fun requestRequiredPermissions() {
@@ -81,6 +88,27 @@ class MainActivity : AppCompatActivity() {
     private fun updatePermissionWarning() {
         findViewById<TextView>(R.id.permission_warning)?.visibility =
             if (hasRecordingPermissions()) View.GONE else View.VISIBLE
+    }
+
+    /**
+     * Android 12+ denies microphone access to a foreground service started from a background
+     * broadcast receiver (RecordingService, started by CallStateReceiver) unless the app holds
+     * an active accessibility service. There is no programmatic way to enable it for the user;
+     * they must do it once from system Settings.
+     */
+    private fun isAccessibilityServiceEnabled(): Boolean {
+        val accessibilityManager = getSystemService(AccessibilityManager::class.java) ?: return false
+        return accessibilityManager
+            .getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_ALL_MASK)
+            .any {
+                it.resolveInfo.serviceInfo.packageName == packageName &&
+                    it.resolveInfo.serviceInfo.name == CallRecorderAccessibilityService::class.java.name
+            }
+    }
+
+    private fun updateAccessibilityWarning() {
+        findViewById<View>(R.id.accessibility_warning_row).visibility =
+            if (isAccessibilityServiceEnabled()) View.GONE else View.VISIBLE
     }
 
     /**
