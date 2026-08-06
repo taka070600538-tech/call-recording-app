@@ -62,6 +62,11 @@ class RecordingService : Service() {
         val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
         audioManager.isSpeakerphoneOn = true
 
+        // A background-started foreground service with no visible surface appears to receive
+        // silent microphone audio during an active call on this device; an active overlay avoids
+        // that. See RecordingOverlay's doc comment for details.
+        RecordingOverlay.show(this)
+
         val file = File(dir, FileNaming.recordingFileName(LocalDateTime.now()))
         try {
             audioRecorder.start(file)
@@ -70,6 +75,7 @@ class RecordingService : Service() {
             // MediaRecorder may have already created a zero-length/corrupt file; remove it so it
             // does not show up in the recordings list.
             file.delete()
+            RecordingOverlay.hide(this)
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
         }
@@ -90,6 +96,7 @@ class RecordingService : Service() {
         } catch (e: Exception) {
             // MediaRecorder.stop() throws for very short recordings; the recorder is released anyway
         }
+        RecordingOverlay.hide(this)
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }

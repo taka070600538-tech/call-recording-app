@@ -16,7 +16,11 @@ class MediaRecorderAudioRecorder(private val context: Context) : AudioRecorder {
             MediaRecorder()
         }
         try {
-            r.setAudioSource(MediaRecorder.AudioSource.MIC)
+            // AudioSource.MIC is silenced by Android during an active call for this app,
+            // even with an active accessibility service (confirmed empirically). VOICE_RECOGNITION
+            // is subject to different audio-policy privacy rules and is being tried as the last
+            // remaining hypothesis for why other call-recording apps can capture real audio here.
+            r.setAudioSource(MediaRecorder.AudioSource.VOICE_RECOGNITION)
             r.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
             r.setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
             // 16kHz mono @32kbps: Whisper's native input format, and small enough that a long

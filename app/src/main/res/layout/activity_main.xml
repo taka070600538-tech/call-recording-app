@@ -35,6 +35,27 @@
             android:text="@string/open_accessibility_settings" />
     </LinearLayout>
 
+    <LinearLayout
+        android:id="@+id/overlay_warning_row"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="12dp"
+        android:visibility="gone">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textStyle="bold"
+            android:text="@string/overlay_warning" />
+
+        <Button
+            android:id="@+id/open_overlay_settings_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/open_overlay_settings" />
+    </LinearLayout>
+
     <Button
         android:id="@+id/settings_button"
         android:layout_width="wrap_content"

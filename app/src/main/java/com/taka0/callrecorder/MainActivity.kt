@@ -60,6 +60,12 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
         }
 
+        findViewById<android.widget.Button>(R.id.open_overlay_settings_button).setOnClickListener {
+            startActivity(
+                Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName"))
+            )
+        }
+
         requestRequiredPermissions()
     }
 
@@ -70,6 +76,7 @@ class MainActivity : AppCompatActivity() {
         // enables the accessibility service from system settings and comes back to the app.
         updatePermissionWarning()
         updateAccessibilityWarning()
+        updateOverlayWarning()
     }
 
     private fun requestRequiredPermissions() {
@@ -91,10 +98,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Android 12+ denies microphone access to a foreground service started from a background
-     * broadcast receiver (RecordingService, started by CallStateReceiver) unless the app holds
-     * an active accessibility service. There is no programmatic way to enable it for the user;
-     * they must do it once from system Settings.
+     * Android 12+ denies microphone access to a background-started foreground service unless the
+     * app holds an active accessibility service; call detection and RecordingService start/stop
+     * run from inside CallRecorderAccessibilityService for this reason. There is no programmatic
+     * way to enable the service for the user; they must do it once from system Settings.
      */
     private fun isAccessibilityServiceEnabled(): Boolean {
         val accessibilityManager = getSystemService(AccessibilityManager::class.java) ?: return false
@@ -109,6 +116,11 @@ class MainActivity : AppCompatActivity() {
     private fun updateAccessibilityWarning() {
         findViewById<View>(R.id.accessibility_warning_row).visibility =
             if (isAccessibilityServiceEnabled()) View.GONE else View.VISIBLE
+    }
+
+    private fun updateOverlayWarning() {
+        findViewById<View>(R.id.overlay_warning_row).visibility =
+            if (Settings.canDrawOverlays(this)) View.GONE else View.VISIBLE
     }
 
     /**
