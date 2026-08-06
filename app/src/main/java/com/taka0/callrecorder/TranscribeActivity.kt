@@ -101,6 +101,26 @@ class TranscribeActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * CallMetadataStoreにまだ値が無い場合、CallLogへの書き込み遅延（実機観測で数十秒に及ぶ）を
+     * 吸収するため、GitHub保存処理中に最大60秒（3秒間隔×20回）まで再試行する。
+     * saveTranscriptAndAudio()はDispatchers.IO上から呼ばれるため、ここでのThread.sleepは
+     * メインスレッドをブロックしない。
+     */
+    private fun resolvePhoneNumber(): String? {
+        CallMetadataStore(applicationContext).get(recordingFile.name)?.let { return it }
+
+        val lookup = SystemCallLogLookup(applicationContext)
+        var number = lookup.mostRecentNumber()
+        var attempts = 0
+        while (number == null && attempts < PHONE_NUMBER_LOOKUP_RETRIES) {
+            Thread.sleep(PHONE_NUMBER_LOOKUP_DELAY_MS)
+            number = lookup.mostRecentNumber()
+            attempts++
+        }
+        return number
+    }
+
     private fun saveTranscriptAndAudio(date: LocalDate, time: LocalTime, text: String) {
         val repo = store.gitHubRepo
         val branch = store.gitHubBranch
@@ -119,8 +139,7 @@ class TranscribeActivity : AppCompatActivity() {
             token = token
         )
 
-        val phoneNumber = CallMetadataStore(applicationContext).get(recordingFile.name)
-            ?: SystemCallLogLookup(applicationContext).mostRecentNumber()
+        val phoneNumber = resolvePhoneNumber()
         val entry = DiaryMarkdownFormatter.entryBlock(time, phoneNumber, text, "audio/${recordingFile.name}")
         val diaryPath = DiaryMarkdownFormatter.diaryFilePath(folder, date)
         val existing = gitHubClient.getExistingTextFile(repo, branch, diaryPath, token)
@@ -155,5 +174,7 @@ class TranscribeActivity : AppCompatActivity() {
     companion object {
         const val EXTRA_RECORDING_PATH = "recording_path"
         const val EXTRA_RECORDED_AT = "recorded_at"
+        private const val PHONE_NUMBER_LOOKUP_RETRIES = 20
+        private const val PHONE_NUMBER_LOOKUP_DELAY_MS = 3000L
     }
 }
