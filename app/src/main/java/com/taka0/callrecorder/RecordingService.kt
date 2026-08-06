@@ -110,22 +110,28 @@ class RecordingService : Service() {
     private fun savePhoneNumberForCurrentFile() {
         val file = currentFile ?: return
         val appContext = applicationContext
+        val lookup = callLogLookup
         backgroundExecutor(Runnable {
-            val phoneNumber = try {
-                var number = callLogLookup.mostRecentNumber()
+            // This Runnable may run well after the Service instance is destroyed (stopSelf() runs
+            // right after this method returns), so it must never touch the Service's own fields —
+            // only the locally-captured vals above (appContext, file, lookup) are safe to use here.
+            // It also runs on a bare Thread with no Android component supervising it, so any
+            // uncaught exception here would crash the whole app process; everything in this body
+            // must therefore be swallowed and never allowed to escape the Runnable.
+            try {
+                var number = lookup.mostRecentNumber()
                 var attempts = 0
                 // CallLogへの書き込みが通話終了から10秒以上遅れることが実機で確認されている。
                 // メインスレッドをブロックしないよう、この再試行は必ずバックグラウンドスレッドで実行する。
                 while (number == null && attempts < MAX_CALL_LOG_RETRIES) {
                     Thread.sleep(CALL_LOG_RETRY_DELAY_MS)
-                    number = callLogLookup.mostRecentNumber()
+                    number = lookup.mostRecentNumber()
                     attempts++
                 }
-                number
+                CallMetadataStore(appContext).save(file.name, number)
             } catch (e: Exception) {
-                null
+                // Swallow everything: nothing thrown in this background Runnable may propagate.
             }
-            CallMetadataStore(appContext).save(file.name, phoneNumber)
         })
     }
 

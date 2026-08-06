@@ -164,20 +164,26 @@ class RecordingServiceTest {
     }
 
     @Test
-    fun `ACTION_STOP runs the CallLog lookup on the injected background executor, not inline`() {
+    fun `ACTION_STOP defers the CallLog lookup so teardown does not block on it`() {
         val service = Robolectric.buildService(RecordingService::class.java).create().get()
         service.setAudioRecorderForTest(FakeAudioRecorder())
-        var executorWasInvoked = false
-        service.setBackgroundExecutorForTest { runnable ->
-            executorWasInvoked = true
-            runnable.run()
-        }
+        var captured: Runnable? = null
+        service.setBackgroundExecutorForTest { runnable -> captured = runnable }
         service.setCallLogLookupForTest(FakeCallLogLookup(mutableListOf("08088004673")))
         service.onStartCommand(Intent(ApplicationProvider.getApplicationContext(), RecordingService::class.java).setAction(RecordingService.ACTION_START), 0, 1)
+        val fileName = service.getCurrentFileNameForTest()
 
         service.onStartCommand(Intent(ApplicationProvider.getApplicationContext(), RecordingService::class.java).setAction(RecordingService.ACTION_STOP), 0, 2)
 
-        assertTrue(executorWasInvoked)
+        // onStartCommand(ACTION_STOP) has already returned, but the captured Runnable has not been
+        // run yet, so the lookup+save must not have happened synchronously as part of stopRecording().
+        val store = CallMetadataStore(ApplicationProvider.getApplicationContext<android.content.Context>())
+        assertNull(store.get(fileName!!))
+
+        captured?.run()
+
+        // Once the deferred work actually runs, it produces the correct result.
+        assertEquals("08088004673", store.get(fileName))
     }
 
     @Test
