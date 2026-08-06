@@ -188,7 +188,7 @@ class RecordingService : Service() {
         private const val NOTIFICATION_ID = 1001
         private const val LOW_STORAGE_NOTIFICATION_ID = 1002
         private const val MIN_FREE_BYTES_TO_RECORD = 50L * 1024 * 1024 // 50MB
-        private const val MAX_CALL_LOG_RETRIES = 20
+        private const val MAX_CALL_LOG_RETRIES = 90
         private const val CALL_LOG_RETRY_DELAY_MS = 2000L
     }
 }
