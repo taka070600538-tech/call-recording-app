@@ -25,6 +25,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var repository: RecordingRepository
     private lateinit var adapter: RecordingsAdapter
+    private lateinit var savedRecordingsStore: SavedRecordingsStore
 
     private val permissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
@@ -39,16 +40,27 @@ class MainActivity : AppCompatActivity() {
 
         val recordingsDir = File(getExternalFilesDir(null), "recordings").apply { mkdirs() }
         repository = RecordingRepository(recordingsDir)
+        savedRecordingsStore = SavedRecordingsStore(this)
 
         adapter = RecordingsAdapter(
             recordings = repository.list(),
-            savedFileNames = SavedRecordingsStore(this).all(),
-            onSelectionChanged = { }
+            savedFileNames = savedRecordingsStore.all(),
+            onSelectionChanged = ::updateActionButtons
         )
 
         findViewById<RecyclerView>(R.id.recordings_list).apply {
             layoutManager = LinearLayoutManager(this@MainActivity)
             adapter = this@MainActivity.adapter
+        }
+
+        findViewById<android.widget.Button>(R.id.action_play).setOnClickListener {
+            adapter.getSelected()?.let(::playRecording)
+        }
+        findViewById<android.widget.Button>(R.id.action_transcribe).setOnClickListener {
+            adapter.getSelected()?.let(::openTranscribe)
+        }
+        findViewById<android.widget.Button>(R.id.action_delete).setOnClickListener {
+            adapter.getSelected()?.let(::deleteRecording)
         }
 
         findViewById<android.widget.Button>(R.id.settings_button).setOnClickListener {
@@ -70,7 +82,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        adapter.updateRecordings(repository.list(), SavedRecordingsStore(this).all())
+        adapter.updateRecordings(repository.list(), savedRecordingsStore.all())
         // Also refresh here so the warnings disappear when the user grants the permission/
         // enables the accessibility service from system settings and comes back to the app.
         updatePermissionWarning()
@@ -141,6 +153,13 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun updateActionButtons(recording: Recording?) {
+        val enabled = recording != null
+        findViewById<android.widget.Button>(R.id.action_play).isEnabled = enabled
+        findViewById<android.widget.Button>(R.id.action_transcribe).isEnabled = enabled
+        findViewById<android.widget.Button>(R.id.action_delete).isEnabled = enabled
+    }
+
     private fun playRecording(recording: Recording) {
         val player = MediaPlayer()
         try {
@@ -168,7 +187,7 @@ class MainActivity : AppCompatActivity() {
             .setMessage("この録音を削除します。元に戻せません。")
             .setPositiveButton("削除") { _, _ ->
                 repository.delete(recording)
-                adapter.updateRecordings(repository.list(), SavedRecordingsStore(this).all())
+                adapter.updateRecordings(repository.list(), savedRecordingsStore.all())
             }
             .setNegativeButton("キャンセル", null)
             .show()
