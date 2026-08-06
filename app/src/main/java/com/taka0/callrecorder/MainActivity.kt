@@ -91,7 +91,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun requestRequiredPermissions() {
-        val permissions = mutableListOf(Manifest.permission.RECORD_AUDIO, Manifest.permission.READ_PHONE_STATE)
+        val permissions = mutableListOf(
+            Manifest.permission.RECORD_AUDIO,
+            Manifest.permission.READ_PHONE_STATE,
+            Manifest.permission.READ_CALL_LOG
+        )
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             permissions.add(Manifest.permission.POST_NOTIFICATIONS)
         }
@@ -99,7 +103,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun hasRecordingPermissions(): Boolean {
-        return listOf(Manifest.permission.RECORD_AUDIO, Manifest.permission.READ_PHONE_STATE)
+        return listOf(
+            Manifest.permission.RECORD_AUDIO,
+            Manifest.permission.READ_PHONE_STATE,
+            Manifest.permission.READ_CALL_LOG
+        )
             .all { ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED }
     }
 

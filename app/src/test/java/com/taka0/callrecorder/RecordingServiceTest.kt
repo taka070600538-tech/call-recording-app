@@ -32,6 +32,15 @@ class FakeAudioRecorder : AudioRecorder {
     }
 }
 
+class FakeCallLogLookup(private val numbers: MutableList<String?>) : CallLogLookup {
+    var callCount = 0
+
+    override fun mostRecentNumber(): String? {
+        callCount++
+        return if (numbers.isNotEmpty()) numbers.removeAt(0) else null
+    }
+}
+
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
 class RecordingServiceTest {
@@ -118,5 +127,49 @@ class RecordingServiceTest {
         val audioManager = ApplicationProvider.getApplicationContext<android.content.Context>()
             .getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager
         assertTrue(audioManager.isSpeakerphoneOn)
+    }
+
+    @Test
+    fun `ACTION_STOP saves the phone number from CallLogLookup to CallMetadataStore`() {
+        val service = Robolectric.buildService(RecordingService::class.java).create().get()
+        service.setAudioRecorderForTest(FakeAudioRecorder())
+        service.setCallLogLookupForTest(FakeCallLogLookup(mutableListOf("08088004673")))
+        val startIntent = Intent(ApplicationProvider.getApplicationContext(), RecordingService::class.java).setAction(RecordingService.ACTION_START)
+        service.onStartCommand(startIntent, 0, 1)
+        val fileName = service.getCurrentFileNameForTest()
+
+        service.onStartCommand(Intent(ApplicationProvider.getApplicationContext(), RecordingService::class.java).setAction(RecordingService.ACTION_STOP), 0, 2)
+
+        val store = CallMetadataStore(ApplicationProvider.getApplicationContext<android.content.Context>())
+        assertEquals("08088004673", store.get(fileName!!))
+    }
+
+    @Test
+    fun `ACTION_STOP retries once and saves null when CallLogLookup returns null twice`() {
+        val service = Robolectric.buildService(RecordingService::class.java).create().get()
+        service.setAudioRecorderForTest(FakeAudioRecorder())
+        val lookup = FakeCallLogLookup(mutableListOf(null, null))
+        service.setCallLogLookupForTest(lookup)
+        val startIntent = Intent(ApplicationProvider.getApplicationContext(), RecordingService::class.java).setAction(RecordingService.ACTION_START)
+        service.onStartCommand(startIntent, 0, 1)
+        val fileName = service.getCurrentFileNameForTest()
+
+        service.onStartCommand(Intent(ApplicationProvider.getApplicationContext(), RecordingService::class.java).setAction(RecordingService.ACTION_STOP), 0, 2)
+
+        assertEquals(2, lookup.callCount)
+        val store = CallMetadataStore(ApplicationProvider.getApplicationContext<android.content.Context>())
+        assertNull(store.get(fileName!!))
+    }
+
+    @Test
+    fun `a stray ACTION_STOP without a prior start does not touch CallMetadataStore`() {
+        val service = Robolectric.buildService(RecordingService::class.java).create().get()
+        service.setAudioRecorderForTest(FakeAudioRecorder())
+        service.setCallLogLookupForTest(FakeCallLogLookup(mutableListOf("08088004673")))
+
+        service.onStartCommand(Intent(ApplicationProvider.getApplicationContext(), RecordingService::class.java).setAction(RecordingService.ACTION_STOP), 0, 1)
+
+        val store = CallMetadataStore(ApplicationProvider.getApplicationContext<android.content.Context>())
+        assertNull(store.get("nonexistent.m4a"))
     }
 }

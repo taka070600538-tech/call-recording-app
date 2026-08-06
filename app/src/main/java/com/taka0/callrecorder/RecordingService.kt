@@ -18,10 +18,13 @@ class RecordingService : Service() {
 
     private lateinit var audioRecorder: AudioRecorder
     private var isRecording = false
+    private lateinit var callLogLookup: CallLogLookup
+    private var currentFile: File? = null
 
     override fun onCreate() {
         super.onCreate()
         audioRecorder = MediaRecorderAudioRecorder(applicationContext)
+        callLogLookup = SystemCallLogLookup(applicationContext)
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -68,6 +71,7 @@ class RecordingService : Service() {
         RecordingOverlay.show(this)
 
         val file = File(dir, FileNaming.recordingFileName(LocalDateTime.now()))
+        currentFile = file
         try {
             audioRecorder.start(file)
             isRecording = true
@@ -96,9 +100,24 @@ class RecordingService : Service() {
         } catch (e: Exception) {
             // MediaRecorder.stop() throws for very short recordings; the recorder is released anyway
         }
+        savePhoneNumberForCurrentFile()
         RecordingOverlay.hide(this)
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
+    }
+
+    private fun savePhoneNumberForCurrentFile() {
+        val file = currentFile ?: return
+        val phoneNumber = try {
+            callLogLookup.mostRecentNumber() ?: run {
+                // CallLogへの書き込みとの競合を吸収するための短い再試行
+                Thread.sleep(300)
+                callLogLookup.mostRecentNumber()
+            }
+        } catch (e: Exception) {
+            null
+        }
+        CallMetadataStore(applicationContext).save(file.name, phoneNumber)
     }
 
     private fun notifyLowStorageAndStop() {
@@ -137,6 +156,12 @@ class RecordingService : Service() {
     fun setAudioRecorderForTest(recorder: AudioRecorder) {
         audioRecorder = recorder
     }
+
+    fun setCallLogLookupForTest(lookup: CallLogLookup) {
+        callLogLookup = lookup
+    }
+
+    fun getCurrentFileNameForTest(): String? = currentFile?.name
 
     companion object {
         const val ACTION_START = "com.taka0.callrecorder.action.START"
