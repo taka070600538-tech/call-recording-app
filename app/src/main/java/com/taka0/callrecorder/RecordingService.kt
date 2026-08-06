@@ -109,11 +109,16 @@ class RecordingService : Service() {
     private fun savePhoneNumberForCurrentFile() {
         val file = currentFile ?: return
         val phoneNumber = try {
-            callLogLookup.mostRecentNumber() ?: run {
-                // CallLogへの書き込みとの競合を吸収するための短い再試行
-                Thread.sleep(300)
-                callLogLookup.mostRecentNumber()
+            var number = callLogLookup.mostRecentNumber()
+            var attempts = 0
+            // CallLogへの書き込みが通話終了直後にはまだ完了していないことがあるため、
+            // 実機テストで観測された遅延を吸収できるだけの回数・間隔で再試行する。
+            while (number == null && attempts < MAX_CALL_LOG_RETRIES) {
+                Thread.sleep(CALL_LOG_RETRY_DELAY_MS)
+                number = callLogLookup.mostRecentNumber()
+                attempts++
             }
+            number
         } catch (e: Exception) {
             null
         }
@@ -169,5 +174,7 @@ class RecordingService : Service() {
         private const val NOTIFICATION_ID = 1001
         private const val LOW_STORAGE_NOTIFICATION_ID = 1002
         private const val MIN_FREE_BYTES_TO_RECORD = 50L * 1024 * 1024 // 50MB
+        private const val MAX_CALL_LOG_RETRIES = 5
+        private const val CALL_LOG_RETRY_DELAY_MS = 500L
     }
 }
