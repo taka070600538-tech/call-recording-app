@@ -50,4 +50,37 @@ class DiaryMarkdownFormatterTest {
         val result = DiaryMarkdownFormatter.appendedContent("---\ndate: 2026-08-05\n---\n\n## 09:00\n\n朝の内容\n\n", "## 14:30\n\n午後の内容\n")
         assertEquals("---\ndate: 2026-08-05\n---\n\n## 09:00\n\n朝の内容\n\n## 14:30\n\n午後の内容\n", result)
     }
+
+    @Test
+    fun `time heading prefix formats HHmm with markdown heading`() {
+        val prefix = DiaryMarkdownFormatter.timeHeadingPrefix(LocalTime.of(9, 5))
+        assertEquals("## 09:05", prefix)
+    }
+
+    @Test
+    fun `patch replaces the unknown heading for the matching time with the phone number`() {
+        val content = "---\ndate: 2026-08-06\n---\n\n## 09:05 — 不明\n\nメモ\n"
+
+        val patched = DiaryMarkdownFormatter.patchUnknownPhoneNumber(content, LocalTime.of(9, 5), "08088004673")
+
+        assertEquals("---\ndate: 2026-08-06\n---\n\n## 09:05 — 08088004673\n\nメモ\n", patched)
+    }
+
+    @Test
+    fun `patch returns null when no matching unknown heading exists`() {
+        val content = "---\ndate: 2026-08-06\n---\n\n## 09:05 — 08099998888\n\nメモ\n"
+
+        val patched = DiaryMarkdownFormatter.patchUnknownPhoneNumber(content, LocalTime.of(9, 5), "08088004673")
+
+        assertEquals(null, patched)
+    }
+
+    @Test
+    fun `patch only replaces the entry for the matching time, leaving other unknown entries untouched`() {
+        val content = "---\ndate: 2026-08-06\n---\n\n## 09:05 — 不明\n\nメモA\n\n## 10:00 — 不明\n\nメモB\n"
+
+        val patched = DiaryMarkdownFormatter.patchUnknownPhoneNumber(content, LocalTime.of(9, 5), "08088004673")
+
+        assertEquals("---\ndate: 2026-08-06\n---\n\n## 09:05 — 08088004673\n\nメモA\n\n## 10:00 — 不明\n\nメモB\n", patched)
+    }
 }

@@ -129,10 +129,43 @@ class RecordingService : Service() {
                     attempts++
                 }
                 CallMetadataStore(appContext).save(file.name, number)
+                if (number != null) {
+                    patchDiaryIfAlreadySaved(appContext, file, number)
+                }
             } catch (e: Exception) {
                 // Swallow everything: nothing thrown in this background Runnable may propagate.
             }
         })
+    }
+
+    /**
+     * すでにGitHubへ保存済みの録音であれば、当時「不明」だった見出しを解決した番号で上書きする。
+     * 未保存（SavedRecordingsStoreに記録が無い）・GitHub未設定・該当する「不明」見出しが見つからない
+     * 場合は何もしない。呼び出し元のtry/catchでラップされているため、ここでは例外処理を行わない。
+     */
+    private fun patchDiaryIfAlreadySaved(appContext: Context, file: File, phoneNumber: String) {
+        if (!SavedRecordingsStore(appContext).all().contains(file.name)) return
+
+        val settings = SecureSettingsStore(appContext)
+        if (!settings.isConfigured()) return
+
+        val recordedAt = LocalDateTime.parse(file.nameWithoutExtension, FileNaming.FORMATTER)
+        val client = GitHubClient()
+        val diaryPath = DiaryMarkdownFormatter.diaryFilePath(settings.gitHubFolder, recordedAt.toLocalDate())
+        val existing = client.getExistingTextFile(settings.gitHubRepo, settings.gitHubBranch, diaryPath, settings.gitHubToken)
+            ?: return
+        val patched = DiaryMarkdownFormatter.patchUnknownPhoneNumber(existing.second, recordedAt.toLocalTime(), phoneNumber)
+            ?: return
+
+        client.putTextFile(
+            repo = settings.gitHubRepo,
+            branch = settings.gitHubBranch,
+            path = diaryPath,
+            content = patched,
+            message = "diary: ${recordedAt.toLocalDate()} ${recordedAt.toLocalTime()} 電話番号を追記",
+            sha = existing.first,
+            token = settings.gitHubToken
+        )
     }
 
     private fun notifyLowStorageAndStop() {
@@ -188,7 +221,7 @@ class RecordingService : Service() {
         private const val NOTIFICATION_ID = 1001
         private const val LOW_STORAGE_NOTIFICATION_ID = 1002
         private const val MIN_FREE_BYTES_TO_RECORD = 50L * 1024 * 1024 // 50MB
-        private const val MAX_CALL_LOG_RETRIES = 90
+        private const val MAX_CALL_LOG_RETRIES = 240
         private const val CALL_LOG_RETRY_DELAY_MS = 2000L
     }
 }
