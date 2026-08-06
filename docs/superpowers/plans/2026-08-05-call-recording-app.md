@@ -2418,9 +2418,13 @@ Expected: `Success`
 
   手動でスピーカーホンをONにした状態で、自分・相手の声とも問題なく聞き取れる音質であることを確認した。詳細は下記の実機検証記録を参照。
 
-- [ ] **Step 7: 「文字起こし」ボタンを押し、Whisperでのテキスト化→編集→GitHub保存が最後まで通り、GitHub上の`diary/YYYY-MM-DD.md`と`diary/audio/`にファイルが増えていることを確認する**
+- [x] **Step 7: 「文字起こし」ボタンを押し、Whisperでのテキスト化→編集→GitHub保存が最後まで通り、GitHub上の`diary/YYYY-MM-DD.md`と`diary/audio/`にファイルが増えていることを確認する**
 
-- [ ] **Step 8: 翌朝（または`Start-ScheduledTask -TaskName "CallRecordingGitPull"`で手動実行）、`日記/通話録音`フォルダにテキストと音声がpullされていることを確認する**
+  実機で実施。`diary/2026-08-06.md`と`diary/audio/2026-08-06-135135.m4a`（173KB）がGitHub上に作成されたことをGitHub REST APIで確認した。
+
+- [x] **Step 8: 翌朝（または`Start-ScheduledTask -TaskName "CallRecordingGitPull"`で手動実行）、`日記/通話録音`フォルダにテキストと音声がpullされていることを確認する**
+
+  `Start-ScheduledTask -TaskName "CallRecordingGitPull"`で手動実行したところ、タスク自体は成功（`LastTaskResult: 0`）と記録されるにもかかわらず、`日記\通話録音`フォルダにファイルが一切書き出されない不具合が発覚。原因は`日記\pull-call-recordings.ps1`がBOM無しUTF-8で保存されており、タスクスケジューラ経由の`-File`実行時にWindows PowerShell 5.1がシステムのANSIコードページ（Shift-JIS）でスクリプトを読み込むため、埋め込んだ日本語パスリテラル（`$outputPath = "...\日記\通話録音"`）が文字化けし、別の（存在しない）パスに書き込まれていたこと（同種の対になるスクリプト`pull-diary.ps1`はBOM付きUTF-8で保存されており、この問題を踏んでいなかった）。`pull-call-recordings.ps1`をBOM付きUTF-8で再保存して修正し、再実行したところ`日記\通話録音\2026-08-06.md`と`日記\通話録音\audio\2026-08-06-135135.m4a`が正しく生成されることを確認した。
 
 - [x] **Step 9: 動作確認の結果を`docs/superpowers/plans/2026-08-05-call-recording-app.md`の末尾に追記し、コミットする**
 
@@ -2456,6 +2460,9 @@ Task 18のStep 1〜6を実施。当初計画（`AudioSource.MIC` + `BroadcastRec
 - スピーカーホンの自動ONはコード上維持しているが、確実に機能する保証はない。**相手の声が聞き取りにくい場合は、通話中に手動でスピーカーホンをONにする運用でカバーする**（市販アプリでも同様の制約があることを確認済みであり、本アプリ固有の欠陥ではない）。
 - `RecordingOverlay`（`SYSTEM_ALERT_WINDOW`によるオーバーレイ表示）は無音化の直接の解決策ではなかったが、副作用もないため実装は残している。
 
-### 未実施
+### Step 7・8 実施記録（2026-08-06、続きのセッション）
 
-Task 18のStep 7（文字起こし→GitHub保存）・Step 8（PC側自動同期の確認）は次回のセッションで実施する。
+- Step 7（文字起こし→GitHub保存）: 実機の「文字起こし」ボタンからWhisper文字起こし→編集→GitHub保存の一連の流れを実施し、GitHub上に`diary/2026-08-06.md`と`diary/audio/2026-08-06-135135.m4a`が作成されたことを確認した。
+- Step 8（PC側自動同期）: `CallRecordingGitPull`タスクを手動実行したところ、`日記\通話録音`フォルダに何も書き出されない不具合を発見。原因は`日記\pull-call-recordings.ps1`がBOM無しUTF-8で保存されており、タスクスケジューラの`-File`実行時にPowerShell 5.1がANSI（Shift-JIS）としてスクリプトを読み込み、埋め込みの日本語パスリテラルが文字化けしていたこと。BOM付きUTF-8で保存し直して修正し、再実行して同期が正しく行われることを確認した。
+
+Task 18の実機動作確認（Step 1〜8）はすべて完了。
