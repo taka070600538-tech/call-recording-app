@@ -14,4 +14,7 @@ class CallMetadataStore(private val prefs: SharedPreferences) {
     }
 
     fun get(fileName: String): String? = prefs.getString(fileName, null)
+
+    fun all(): Map<String, String> =
+        prefs.all.mapNotNull { (fileName, value) -> (value as? String)?.let { fileName to it } }.toMap()
 }

@@ -53,4 +53,35 @@ class CallMetadataStoreTest {
 
         assertEquals("08088004673", reloaded.get("2026-08-06-135135.m4a"))
     }
+
+    @Test
+    fun `all returns every saved non-null entry as a map`() {
+        val store = newStore()
+        store.save("2026-08-06-135135.m4a", "08088004673")
+        store.save("2026-08-07-101334.m4a", "08089004673")
+
+        assertEquals(
+            mapOf(
+                "2026-08-06-135135.m4a" to "08088004673",
+                "2026-08-07-101334.m4a" to "08089004673"
+            ),
+            store.all()
+        )
+    }
+
+    @Test
+    fun `all excludes entries saved with a null phone number`() {
+        val store = newStore()
+        store.save("2026-08-06-135135.m4a", "08088004673")
+        store.save("2026-08-07-095611.m4a", null)
+
+        assertEquals(mapOf("2026-08-06-135135.m4a" to "08088004673"), store.all())
+    }
+
+    @Test
+    fun `all returns an empty map when nothing was saved`() {
+        val store = newStore()
+
+        assertEquals(emptyMap<String, String>(), store.all())
+    }
 }
