@@ -2,6 +2,7 @@ package com.taka0.callrecorder
 
 import android.content.Context
 import android.provider.CallLog
+import android.util.Log
 
 class SystemCallLogLookup(private val context: Context) : CallLogLookup {
     override fun mostRecentNumber(afterEpochMillis: Long, beforeEpochMillis: Long): String? {
@@ -16,9 +17,13 @@ class SystemCallLogLookup(private val context: Context) : CallLogLookup {
                 // moveToFirst() below already gives the most-recent row under this DESC order.
                 "${CallLog.Calls.DATE} DESC"
             )?.use { cursor ->
-                if (cursor.moveToFirst()) cursor.getString(0) else null
+                // Non-notified (番号非表示) calls can produce an empty-but-non-null NUMBER column;
+                // treat that the same as "unresolved" (null) so callers don't persist "" as if it
+                // were a real, known number.
+                if (cursor.moveToFirst()) cursor.getString(0)?.takeIf { it.isNotBlank() } else null
             }
         } catch (e: Exception) {
+            Log.w("CallLogLookup", "CallLog query failed", e)
             null
         }
     }

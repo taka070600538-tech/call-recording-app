@@ -102,11 +102,14 @@ class MainActivity : AppCompatActivity() {
         permissionLauncher.launch(permissions.toTypedArray())
     }
 
+    /**
+     * READ_CALL_LOGは含めない: この権限が無くても録音自体は正常に動作し、電話番号が記録されない
+     * だけなので、READ_CALL_LOG単独の拒否で「録音は動作しません」という誤った警告を出さないため。
+     */
     private fun hasRecordingPermissions(): Boolean {
         return listOf(
             Manifest.permission.RECORD_AUDIO,
-            Manifest.permission.READ_PHONE_STATE,
-            Manifest.permission.READ_CALL_LOG
+            Manifest.permission.READ_PHONE_STATE
         )
             .all { ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED }
     }
