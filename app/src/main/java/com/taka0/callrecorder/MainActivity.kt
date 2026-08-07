@@ -26,6 +26,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var repository: RecordingRepository
     private lateinit var adapter: RecordingsAdapter
     private lateinit var savedRecordingsStore: SavedRecordingsStore
+    private lateinit var callMetadataStore: CallMetadataStore
 
     private val permissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
@@ -41,11 +42,12 @@ class MainActivity : AppCompatActivity() {
         val recordingsDir = File(getExternalFilesDir(null), "recordings").apply { mkdirs() }
         repository = RecordingRepository(recordingsDir)
         savedRecordingsStore = SavedRecordingsStore(this)
+        callMetadataStore = CallMetadataStore(this)
 
         adapter = RecordingsAdapter(
             recordings = repository.list(),
             savedFileNames = savedRecordingsStore.all(),
-            phoneNumbers = emptyMap(),
+            phoneNumbers = callMetadataStore.all(),
             onSelectionChanged = ::updateActionButtons
         )
 
@@ -83,7 +85,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        adapter.updateRecordings(repository.list(), savedRecordingsStore.all(), emptyMap())
+        adapter.updateRecordings(repository.list(), savedRecordingsStore.all(), callMetadataStore.all())
         // Also refresh here so the warnings disappear when the user grants the permission/
         // enables the accessibility service from system settings and comes back to the app.
         updatePermissionWarning()
@@ -199,7 +201,7 @@ class MainActivity : AppCompatActivity() {
             .setMessage("この録音を削除します。元に戻せません。")
             .setPositiveButton("削除") { _, _ ->
                 repository.delete(recording)
-                adapter.updateRecordings(repository.list(), savedRecordingsStore.all(), emptyMap())
+                adapter.updateRecordings(repository.list(), savedRecordingsStore.all(), callMetadataStore.all())
             }
             .setNegativeButton("キャンセル", null)
             .show()
