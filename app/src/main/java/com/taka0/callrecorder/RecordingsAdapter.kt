@@ -10,6 +10,7 @@ import java.time.format.DateTimeFormatter
 class RecordingsAdapter(
     private var recordings: List<Recording>,
     private var savedFileNames: Set<String>,
+    private var phoneNumbers: Map<String, String>,
     private val onSelectionChanged: (Recording?) -> Unit
 ) : RecyclerView.Adapter<RecordingsAdapter.ViewHolder>() {
 
@@ -28,7 +29,9 @@ class RecordingsAdapter(
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val recording = recordings[position]
-        holder.label.text = recording.recordedAt.format(labelFormatter)
+        val baseLabel = recording.recordedAt.format(labelFormatter)
+        val phoneNumber = phoneNumbers[recording.file.name]
+        holder.label.text = if (phoneNumber != null) "$baseLabel ・ $phoneNumber" else baseLabel
         holder.savedBadge.visibility = if (recording.file.name in savedFileNames) View.VISIBLE else View.GONE
         holder.itemView.isActivated = recording == selectedRecording
         holder.itemView.setOnClickListener {
@@ -42,9 +45,10 @@ class RecordingsAdapter(
 
     fun getSelected(): Recording? = selectedRecording
 
-    fun updateRecordings(newRecordings: List<Recording>, newSavedFileNames: Set<String>) {
+    fun updateRecordings(newRecordings: List<Recording>, newSavedFileNames: Set<String>, newPhoneNumbers: Map<String, String>) {
         recordings = newRecordings
         savedFileNames = newSavedFileNames
+        phoneNumbers = newPhoneNumbers
         if (selectedRecording != null && selectedRecording !in newRecordings) {
             selectedRecording = null
             onSelectionChanged(null)

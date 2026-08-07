@@ -47,7 +47,7 @@ class RecordingsAdapterTest {
         val a = recording("a")
         val b = recording("b")
         var selected: Recording? = null
-        val adapter = RecordingsAdapter(listOf(a, b), emptySet()) { selected = it }
+        val adapter = RecordingsAdapter(listOf(a, b), emptySet(), emptyMap()) { selected = it }
         val recyclerView = buildRecyclerView(adapter)
 
         recyclerView.findViewHolderForAdapterPosition(1)!!.itemView.performClick()
@@ -64,11 +64,11 @@ class RecordingsAdapterTest {
         val a = recording("a")
         val b = recording("b")
         var selected: Recording? = null
-        val adapter = RecordingsAdapter(listOf(a, b), emptySet()) { selected = it }
+        val adapter = RecordingsAdapter(listOf(a, b), emptySet(), emptyMap()) { selected = it }
         buildRecyclerView(adapter).findViewHolderForAdapterPosition(0)!!.itemView.performClick()
         assertEquals(a, adapter.getSelected())
 
-        adapter.updateRecordings(listOf(b), emptySet())
+        adapter.updateRecordings(listOf(b), emptySet(), emptyMap())
 
         assertNull(adapter.getSelected())
         assertNull(selected)
@@ -78,10 +78,10 @@ class RecordingsAdapterTest {
     fun `updateRecordings keeps selection when the selected recording is still present`() {
         val a = recording("a")
         val b = recording("b")
-        val adapter = RecordingsAdapter(listOf(a, b), emptySet()) { }
+        val adapter = RecordingsAdapter(listOf(a, b), emptySet(), emptyMap()) { }
         buildRecyclerView(adapter).findViewHolderForAdapterPosition(0)!!.itemView.performClick()
 
-        adapter.updateRecordings(listOf(a, b), emptySet())
+        adapter.updateRecordings(listOf(a, b), emptySet(), emptyMap())
 
         assertEquals(a, adapter.getSelected())
     }
@@ -90,7 +90,7 @@ class RecordingsAdapterTest {
     fun `saved badge is visible only for file names in savedFileNames`() {
         val a = recording("a")
         val b = recording("b")
-        val adapter = RecordingsAdapter(listOf(a, b), setOf(a.file.name)) { }
+        val adapter = RecordingsAdapter(listOf(a, b), setOf(a.file.name), emptyMap()) { }
         val recyclerView = buildRecyclerView(adapter)
 
         val badgeA = recyclerView.findViewHolderForAdapterPosition(0)!!.itemView.findViewById<View>(R.id.saved_badge)
@@ -98,5 +98,30 @@ class RecordingsAdapterTest {
 
         assertEquals(View.VISIBLE, badgeA.visibility)
         assertEquals(View.GONE, badgeB.visibility)
+    }
+
+    @Test
+    fun `label includes the phone number when one is known for that file`() {
+        val a = recording("a")
+        val b = recording("b")
+        val adapter = RecordingsAdapter(listOf(a, b), emptySet(), mapOf(a.file.name to "08089004673")) { }
+        val recyclerView = buildRecyclerView(adapter)
+
+        val labelA = recyclerView.findViewHolderForAdapterPosition(0)!!.itemView.findViewById<android.widget.TextView>(R.id.recording_label)
+        val labelB = recyclerView.findViewHolderForAdapterPosition(1)!!.itemView.findViewById<android.widget.TextView>(R.id.recording_label)
+
+        assertTrue(labelA.text.toString().endsWith("08089004673"))
+        assertFalse(labelB.text.toString().contains("08089004673"))
+    }
+
+    @Test
+    fun `label is date-only when no phone number is known for that file`() {
+        val a = recording("a")
+        val adapter = RecordingsAdapter(listOf(a), emptySet(), emptyMap()) { }
+        val recyclerView = buildRecyclerView(adapter)
+
+        val labelA = recyclerView.findViewHolderForAdapterPosition(0)!!.itemView.findViewById<android.widget.TextView>(R.id.recording_label)
+
+        assertEquals("2026-08-06 13:51", labelA.text.toString())
     }
 }
