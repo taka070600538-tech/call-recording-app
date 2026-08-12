@@ -119,7 +119,8 @@ class TranscribeActivity : AppCompatActivity() {
             token = token
         )
 
-        val entry = DiaryMarkdownFormatter.entryBlock(time, text, "audio/${recordingFile.name}")
+        val phoneNumber = CallMetadataStore(applicationContext).get(recordingFile.name)
+        val entry = DiaryMarkdownFormatter.entryBlock(time, phoneNumber, text, "audio/${recordingFile.name}")
         val diaryPath = DiaryMarkdownFormatter.diaryFilePath(folder, date)
         val existing = gitHubClient.getExistingTextFile(repo, branch, diaryPath, token)
 

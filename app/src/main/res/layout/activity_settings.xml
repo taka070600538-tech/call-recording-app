@@ -1,44 +1,86 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/settings_root"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="16dp">
+    android:layout_height="match_parent">
 
-    <EditText
-        android:id="@+id/openai_key_input"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="OpenAI APIキー" />
+        android:orientation="vertical"
+        android:padding="16dp">
 
-    <EditText
-        android:id="@+id/github_token_input"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="GitHub Personal Access Token" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="文字起こし（Whisper）"
+            android:textAppearance="?android:attr/textAppearanceMedium"
+            android:textStyle="bold" />
 
-    <EditText
-        android:id="@+id/github_repo_input"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="リポジトリ（例: user/call-recording-app）" />
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="選んだ録音の文字起こしに使うOpenAIのAPIキーです。この端末の中だけに保存されます。"
+            android:textAppearance="?android:attr/textAppearanceSmall" />
 
-    <EditText
-        android:id="@+id/github_branch_input"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="ブランチ（既定: main）" />
+        <EditText
+            android:id="@+id/openai_key_input"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:hint="OpenAI APIキー"
+            android:inputType="textPassword" />
 
-    <EditText
-        android:id="@+id/github_folder_input"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="保存フォルダ（既定: diary）" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="GitHub連携"
+            android:textAppearance="?android:attr/textAppearanceMedium"
+            android:textStyle="bold" />
 
-    <Button
-        android:id="@+id/save_settings_button"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="保存" />
-</LinearLayout>
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="文字起こしした日記と音声の保存先です。トークンはfine-grained PAT（対象にcall-recording-appを含むもの）を使います。"
+            android:textAppearance="?android:attr/textAppearanceSmall" />
+
+        <EditText
+            android:id="@+id/github_token_input"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:hint="GitHub Personal Access Token"
+            android:inputType="textPassword" />
+
+        <EditText
+            android:id="@+id/github_repo_input"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="リポジトリ（例: user/call-recording-app）"
+            android:inputType="textUri" />
+
+        <EditText
+            android:id="@+id/github_branch_input"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="ブランチ（既定: main）"
+            android:inputType="text" />
+
+        <EditText
+            android:id="@+id/github_folder_input"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="保存フォルダ（既定: diary）"
+            android:inputType="text" />
+
+        <Button
+            android:id="@+id/save_settings_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="設定を保存" />
+    </LinearLayout>
+</ScrollView>
