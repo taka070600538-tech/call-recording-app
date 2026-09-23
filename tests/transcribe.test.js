@@ -28,7 +28,7 @@ test('stripFrontmatter: フロントマターが無ければそのまま', () =>
   assert.equal(stripFrontmatter('## 11:56\n\n本文\n'), '## 11:56\n\n本文\n');
 });
 
-test('rewriteAudioLinks: 音声リンクを01_原油起点の相対パスへ書き換える', () => {
+test('rewriteAudioLinks: 音声リンクを01-NOTE起点の相対パスへ書き換える', () => {
   assert.equal(
     rewriteAudioLinks('[音声を再生](audio/2026-08-10-115624.m4a)'),
     '[音声を再生](../Git/call-recording-app/diary/audio/2026-08-10-115624.m4a)'

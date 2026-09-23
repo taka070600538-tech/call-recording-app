@@ -1,7 +1,7 @@
 // diary/YYYY-MM-DD.md(アプリがGitHub経由で届ける録音日記)を読み、Obsidianデイリーノートに転記する。
 // マーカー区間を冪等にupsertするため、再実行のたびに最新内容へ自己修復される。
-// 音声リンクは diary/ 起点の "audio/xxx.m4a" のままだと01_原油から辿れないため、
-// 01_原油 起点の相対パスへ書き換えてから転記する。
+// 音声リンクは diary/ 起点の "audio/xxx.m4a" のままだと01-NOTEから辿れないため、
+// 01-NOTE 起点の相対パスへ書き換えてから転記する。
 // 日本語パスはこのファイル(UTF-8)内に持つ(.ps1に書くと文字化けするため)。
 import { readFileSync, writeFileSync, existsSync, readdirSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -10,8 +10,8 @@ import { pathToFileURL } from 'node:url';
 const START = '<!-- 通話録音:start -->';
 const END = '<!-- 通話録音:end -->';
 const DEFAULT_SOURCE_DIR = String.raw`D:\Obsidian Vault for Claude Code\Git\call-recording-app\diary`;
-const DEFAULT_DIARY_DIR = String.raw`D:\Obsidian Vault for Claude Code\01_原油`;
-// 01_原油\YYYY-MM-DD.md から見た音声フォルダの相対パス。
+const DEFAULT_DIARY_DIR = String.raw`D:\Obsidian Vault for Claude Code\01-NOTE`;
+// 01-NOTE\YYYY-MM-DD.md から見た音声フォルダの相対パス。
 const AUDIO_PREFIX = '../Git/call-recording-app/diary/audio/';
 const DATE_FILE = /^(\d{4}-\d{2}-\d{2})\.md$/;
 
@@ -28,7 +28,7 @@ export function stripFrontmatter(text) {
   return m ? text.slice(m[0].length) : text;
 }
 
-// diary/ 起点の音声リンクを 01_原油 起点の相対パスへ書き換える。
+// diary/ 起点の音声リンクを 01-NOTE 起点の相対パスへ書き換える。
 // 既に書き換え済みのもの・外部URLには触れない。
 export function rewriteAudioLinks(text) {
   return text.replace(/\]\(audio\/([^)]+)\)/g, (_all, name) => `](${AUDIO_PREFIX}${name})`);
